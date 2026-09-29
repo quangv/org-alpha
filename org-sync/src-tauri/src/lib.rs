@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
-    AppHandle, Manager, State,
+    AppHandle, Emitter, Manager, State,
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -80,7 +80,7 @@ fn set_github_repo(app: AppHandle, state: State<AppState>, repo: String) -> Resu
 }
 
 #[tauri::command]
-fn trigger_sync(state: State<AppState>) -> Result<(), String> {
+fn trigger_sync(state: State<AppState>) -> Result<String, String> {
     let config = state.0.lock().unwrap().clone();
     let folder = config.folder.ok_or("No folder configured")?;
     let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
@@ -143,7 +143,12 @@ pub fn run() {
                         let now = chrono::Local::now()
                             .format("%Y-%m-%d %H:%M:%S")
                             .to_string();
-                        let _ = git::sync(&folder, &format!("sync: {}", now));
+                        let result = git::sync(&folder, &format!("sync: {}", now));
+                        let payload = match result {
+                            Ok(msg) => serde_json::json!({ "status": "ok", "message": msg }),
+                            Err(e) => serde_json::json!({ "status": "error", "message": e }),
+                        };
+                        let _ = app.emit("sync-result", payload);
                     }
                 }
                 _ => {}

@@ -43,13 +43,13 @@ pub fn set_remote(repo: &str, url: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn sync(repo: &str, message: &str) -> Result<(), String> {
+pub fn sync(repo: &str, message: &str) -> Result<String, String> {
     let status = git(repo, &["status", "--porcelain"])?;
     if status.is_empty() {
-        return Ok(());
+        return Ok("nothing to sync".to_string());
     }
     git(repo, &["add", "."])?;
     git(repo, &["commit", "-m", message])?;
-    git(repo, &["push"])?;
-    Ok(())
+    git(repo, &["push", "-u", "origin", "HEAD"])?;
+    Ok("synced".to_string())
 }

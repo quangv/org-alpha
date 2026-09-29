@@ -127,6 +127,15 @@ button:disabled {
   color: #721c24;
 }
 
+.hint {
+  font-size: 11px;
+  color: #856404;
+  background-color: #fff3cd;
+  padding: 5px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;

@@ -60,9 +60,14 @@ function App() {
   }
 
   async function saveRepo() {
+    const url = repoInput.trim();
+    if (!url.startsWith("https://")) {
+      setError("Use an HTTPS URL, e.g. https://github.com/user/repo.git");
+      return;
+    }
     try {
-      await invoke("set_github_repo", { repo: repoInput.trim() });
-      setGithubRepo(repoInput.trim());
+      await invoke("set_github_repo", { repo: url });
+      setGithubRepo(url);
       setRepoSaved(true);
       setError(null);
       setTimeout(() => setRepoSaved(false), 2000);
@@ -74,9 +79,8 @@ function App() {
   async function syncNow() {
     setSyncing(true);
     try {
-      await invoke("trigger_sync");
-      const now = new Date().toLocaleString();
-      setLastSync(`sync: ${now}`);
+      const result = await invoke<string>("trigger_sync");
+      setLastSync(result);
       setError(null);
     } catch (e) {
       setError(e as string);
@@ -98,7 +102,7 @@ function App() {
           <input
             className="repo-input"
             type="text"
-            placeholder="https://github.com/user/repo.git"
+            placeholder="https://github.com/user/repo"
             value={repoInput}
             onChange={(e) => setRepoInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && repoChanged && saveRepo()}

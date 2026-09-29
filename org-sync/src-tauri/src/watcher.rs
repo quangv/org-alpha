@@ -23,7 +23,7 @@ pub fn start(app: AppHandle, folder: String) {
                     let msg = format!("sync: {}", now);
                     let result = git::sync(&folder, &msg);
                     let payload = match result {
-                        Ok(()) => serde_json::json!({ "status": "ok", "message": msg }),
+                        Ok(result) => serde_json::json!({ "status": "ok", "message": result }),
                         Err(e) => serde_json::json!({ "status": "error", "message": e }),
                     };
                     let _ = app.emit("sync-result", payload);
