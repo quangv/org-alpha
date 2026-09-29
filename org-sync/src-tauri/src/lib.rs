@@ -135,6 +135,44 @@ fn set_watch_folder(app: AppHandle, state: State<AppState>, folder: String) -> R
     set_folder(app, state, folder)
 }
 
+#[derive(Serialize)]
+struct DirEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+}
+
+#[tauri::command]
+fn read_dir(path: String) -> Result<Vec<DirEntry>, String> {
+    let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
+    let mut result: Vec<DirEntry> = entries
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                return None;
+            }
+            let path = e.path().to_string_lossy().to_string();
+            let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
+            Some(DirEntry { name, path, is_dir })
+        })
+        .collect();
+    result.sort_by(|a, b| {
+        b.is_dir.cmp(&a.is_dir).then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(result)
+}
+
+#[tauri::command]
+fn read_file(path: String) -> Result<String, String> {
+    fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn write_file(path: String, content: String) -> Result<(), String> {
+    fs::write(&path, content).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -206,6 +244,9 @@ pub fn run() {
             trigger_sync,
             get_watch_folder,
             set_watch_folder,
+            read_dir,
+            read_file,
+            write_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

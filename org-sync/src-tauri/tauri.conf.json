@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "org-sync",
-        "width": 400,
-        "height": 500,
-        "visible": false,
-        "resizable": false
+        "width": 900,
+        "height": 600,
+        "visible": true,
+        "resizable": true
       }
     ],
     "trayIcon": {
