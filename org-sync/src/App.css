@@ -197,6 +197,17 @@ html, body, #root {
   color: #333;
 }
 
+.editor-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-indicator {
+  font-size: 11px;
+  color: #5cb85c;
+}
+
 .save-indicator {
   font-size: 11px;
   color: #aaa;

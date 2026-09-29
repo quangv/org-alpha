@@ -172,7 +172,7 @@ function FileTree({ rootPath, ...shared }: FileTreeProps) {
 
 // --- Markdown Editor ---
 
-function MarkdownEditor({ path }: { path: string }) {
+function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
   const [content, setContent] = useState("");
   const [saved, setSaved] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -203,9 +203,12 @@ function MarkdownEditor({ path }: { path: string }) {
     <div className="editor-pane">
       <div className="editor-header">
         <span className="editor-filename">{filename}</span>
-        <span className={`save-indicator${saved ? " saved" : ""}`}>
-          {saved ? "saved" : "saving…"}
-        </span>
+        <div className="editor-header-right">
+          {synced && <span className="sync-indicator">synced</span>}
+          <span className={`save-indicator${saved ? " saved" : ""}`}>
+            {saved ? "saved" : "saving…"}
+          </span>
+        </div>
       </div>
       <textarea
         className="editor-textarea"
@@ -511,7 +514,7 @@ function App() {
           </div>
           <div className="main-area">
             {selectedPath ? (
-              <MarkdownEditor key={selectedPath} path={selectedPath} />
+              <MarkdownEditor key={selectedPath} path={selectedPath} synced={syncStatus?.type === "ok"} />
             ) : (
               <div className="empty-state">Select a file to edit</div>
             )}
@@ -529,8 +532,8 @@ function App() {
         </div>
       )}
 
-      {syncStatus && (
-        <div className={`toast ${syncStatus.type}`}>
+      {syncStatus?.type === "error" && (
+        <div className="toast error">
           <span>{syncStatus.msg}</span>
           <button
             className="toast-copy-btn"
