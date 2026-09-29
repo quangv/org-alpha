@@ -63,7 +63,12 @@ fn set_folder(app: AppHandle, state: State<AppState>, folder: String) -> Result<
                     let mut config = state.0.lock().unwrap();
                     config.folder = None;
                     save_config(&app, &config);
-                    return Err(format!("Clone failed: {}", e));
+                    let hint = if e.contains("403") || e.contains("Write access") {
+                        "\n\nToken may be missing permissions. Ensure it has Contents: Read and write access.\nhttps://github.com/settings/personal-access-tokens/new"
+                    } else {
+                        ""
+                    };
+                    return Err(format!("Clone failed: {}{}", e, hint));
                 }
             }
             None => return Err("Choose a GitHub repo first, then select a folder".to_string()),
@@ -137,13 +142,17 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState(Mutex::new(Config::default())))
         .setup(|app| {
-            let config = load_config(app.handle());
+            let mut config = load_config(app.handle());
+            if let Some(folder) = &config.folder {
+                if !git::is_git_repo(folder) {
+                    config.folder = None;
+                    save_config(app.handle(), &config);
+                }
+            }
             *app.state::<AppState>().0.lock().unwrap() = config.clone();
 
             if let Some(folder) = config.folder.clone() {
-                if git::is_git_repo(&folder) {
-                    watcher::start(app.handle().clone(), folder);
-                }
+                watcher::start(app.handle().clone(), folder);
             }
 
             // Build a minimal menu: org-sync > Sync Now, separator, Quit
