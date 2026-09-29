@@ -450,6 +450,13 @@ button:disabled {
   background: rgba(255,255,255,0.25);
 }
 
+.toast-copy-btn:active {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.15);
+  transform: scale(0.94);
+  transition: transform 0.07s ease, background 0.07s ease;
+}
+
 .toast.ok {
   background: #1a3a22;
   color: #a3d9a5;
