@@ -214,7 +214,7 @@ pub fn run() {
                 watcher::start(app.handle().clone(), folder);
             }
 
-            // Build a minimal menu: org-sync > Sync Now, separator, Quit
+            // Build menu
             let sync_item = MenuItem::with_id(app, "sync", "Sync Now", true, Some("CmdOrCtrl+S"))?;
             let settings_item = MenuItem::with_id(app, "settings", "Settings...", true, Some("CmdOrCtrl+,"))?;
             let separator = PredefinedMenuItem::separator(app)?;
@@ -228,7 +228,23 @@ pub fn run() {
                 &[&settings_item, &sync_item, &separator, &quit_item],
             )?;
 
-            let menu = Menu::with_items(app, &[&app_submenu])?;
+            let edit_submenu = Submenu::with_id_and_items(
+                app,
+                "edit",
+                "Edit",
+                true,
+                &[
+                    &PredefinedMenuItem::undo(app, None)?,
+                    &PredefinedMenuItem::redo(app, None)?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &PredefinedMenuItem::cut(app, None)?,
+                    &PredefinedMenuItem::copy(app, None)?,
+                    &PredefinedMenuItem::paste(app, None)?,
+                    &PredefinedMenuItem::select_all(app, None)?,
+                ],
+            )?;
+
+            let menu = Menu::with_items(app, &[&app_submenu, &edit_submenu])?;
             app.set_menu(menu)?;
 
             app.on_menu_event(|app, event| match event.id().as_ref() {

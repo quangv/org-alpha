@@ -410,14 +410,19 @@ function App() {
     invoke<Config>("get_config").then((c) => {
       setConfig(c);
       setFolder(c.folder);
-      if (!c.folder || !c.github_repo) setShowSettings(true);
+      if (!c.folder || !c.github_repo) {
+        setShowSettings(true);
+      } else {
+        const last = localStorage.getItem("lastOpenFile");
+        if (last) setSelectedPath(last);
+      }
     });
 
     const unlisten = listen<SyncResult>("sync-result", (event) => {
       setSyncing(false);
       if (event.payload.status === "error" || event.payload.message !== "up to date") {
         setSyncStatus({ type: event.payload.status, msg: event.payload.message });
-        setTimeout(() => setSyncStatus(null), 4000);
+        setTimeout(() => setSyncStatus(null), event.payload.status === "error" ? 12000 : 4000);
       }
     });
 
@@ -428,13 +433,14 @@ function App() {
     const isMarkdown = path.endsWith(".md") || path.endsWith(".markdown");
     if (isMarkdown) {
       setSelectedPath(path);
+      localStorage.setItem("lastOpenFile", path);
     } else {
       try {
         await invoke("open_native", { path });
       } catch (e) {
         const msg = `Could not open file: ${e}`;
         setSyncStatus({ type: "error", msg });
-        setTimeout(() => setSyncStatus(null), 8000);
+        setTimeout(() => setSyncStatus(null), 12000);
       }
     }
   }
@@ -458,7 +464,7 @@ function App() {
       setSelectedPath(path);
     } catch (e) {
       setSyncStatus({ type: "error", msg: e as string });
-      setTimeout(() => setSyncStatus(null), 4000);
+      setTimeout(() => setSyncStatus(null), 12000);
     }
     setCreatingInPath(null);
   }
