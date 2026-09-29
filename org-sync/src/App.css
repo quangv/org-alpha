@@ -40,10 +40,39 @@ label {
   letter-spacing: 0.05em;
 }
 
-.folder-row {
+.folder-row,
+.repo-row {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.repo-input {
+  flex: 1;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #0f0f0f;
+  outline: none;
+}
+
+.repo-input:focus {
+  border-color: #396cd8;
+}
+
+@media (prefers-color-scheme: dark) {
+  .repo-input {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #f6f6f6;
+  }
+
+  .repo-input:focus {
+    border-color: #5a8af8;
+  }
 }
 
 .folder-path {

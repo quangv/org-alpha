@@ -20,6 +20,16 @@ pub fn is_git_repo(path: &str) -> bool {
     Path::new(path).join(".git").exists()
 }
 
+pub fn set_remote(repo: &str, url: &str) -> Result<(), String> {
+    let remotes = git(repo, &["remote"])?;
+    if remotes.lines().any(|r| r == "origin") {
+        git(repo, &["remote", "set-url", "origin", url])?;
+    } else {
+        git(repo, &["remote", "add", "origin", url])?;
+    }
+    Ok(())
+}
+
 pub fn sync(repo: &str, message: &str) -> Result<(), String> {
     let status = git(repo, &["status", "--porcelain"])?;
     if status.is_empty() {

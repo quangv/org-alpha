@@ -4,6 +4,11 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 
+interface Config {
+  folder: string | null;
+  github_repo: string | null;
+}
+
 interface SyncResult {
   status: "ok" | "error";
   message: string;
@@ -11,12 +16,20 @@ interface SyncResult {
 
 function App() {
   const [folder, setFolder] = useState<string | null>(null);
+  const [githubRepo, setGithubRepo] = useState<string>("");
+  const [repoInput, setRepoInput] = useState<string>("");
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [repoSaved, setRepoSaved] = useState(false);
 
   useEffect(() => {
-    invoke<string | null>("get_watch_folder").then(setFolder);
+    invoke<Config>("get_config").then((config) => {
+      setFolder(config.folder);
+      const repo = config.github_repo ?? "";
+      setGithubRepo(repo);
+      setRepoInput(repo);
+    });
 
     const unlisten = listen<SyncResult>("sync-result", (event) => {
       setSyncing(false);
@@ -38,9 +51,21 @@ function App() {
     if (!selected) return;
     const path = selected as string;
     try {
-      await invoke("set_watch_folder", { folder: path });
+      await invoke("set_folder", { folder: path });
       setFolder(path);
       setError(null);
+    } catch (e) {
+      setError(e as string);
+    }
+  }
+
+  async function saveRepo() {
+    try {
+      await invoke("set_github_repo", { repo: repoInput.trim() });
+      setGithubRepo(repoInput.trim());
+      setRepoSaved(true);
+      setError(null);
+      setTimeout(() => setRepoSaved(false), 2000);
     } catch (e) {
       setError(e as string);
     }
@@ -60,19 +85,39 @@ function App() {
     }
   }
 
+  const repoChanged = repoInput.trim() !== githubRepo;
+  const configured = !!folder && !!githubRepo;
+
   return (
     <div className="app">
       <h1>org-sync</h1>
 
       <div className="section">
-        <label>Watched Folder</label>
+        <label>Local Folder</label>
         <div className="folder-row">
           <span className="folder-path">{folder ?? "None selected"}</span>
           <button onClick={pickFolder}>Choose</button>
         </div>
       </div>
 
-      {folder && (
+      <div className="section">
+        <label>GitHub Repo</label>
+        <div className="repo-row">
+          <input
+            className="repo-input"
+            type="text"
+            placeholder="https://github.com/user/repo.git"
+            value={repoInput}
+            onChange={(e) => setRepoInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && repoChanged && saveRepo()}
+          />
+          <button onClick={saveRepo} disabled={!repoInput.trim() || !repoChanged}>
+            {repoSaved ? "Saved" : "Save"}
+          </button>
+        </div>
+      </div>
+
+      {configured && (
         <div className="section">
           <button className="sync-btn" onClick={syncNow} disabled={syncing}>
             {syncing ? "Syncing..." : "Sync Now"}
