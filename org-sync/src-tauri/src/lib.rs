@@ -173,6 +173,15 @@ fn write_file(path: String, content: String) -> Result<(), String> {
     fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn open_native(path: String) -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg(&path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -247,6 +256,7 @@ pub fn run() {
             read_dir,
             read_file,
             write_file,
+            open_native,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openPath } from "@tauri-apps/plugin-opener";
 import "./App.css";
 
 interface Config {
@@ -297,6 +296,35 @@ function SettingsPanel({ config, onClose, onFolderChange }: SettingsProps) {
   );
 }
 
+// --- Help Modal ---
+
+function HelpModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="settings-header">
+          <span>Help</span>
+          <button className="icon-btn" onClick={onClose}>✕</button>
+        </div>
+        <div className="help-content">
+          <div className="help-item">
+            <strong>Saved</strong>
+            <p>Your file has been written to disk. Happens automatically ~800ms after you stop typing.</p>
+          </div>
+          <div className="help-item">
+            <strong>Synced (↑ toast)</strong>
+            <p>Your changes have been committed and pushed to GitHub. Triggered automatically when files change, or manually with the ↑ button.</p>
+          </div>
+          <div className="help-item">
+            <strong>Opening files</strong>
+            <p>Markdown files (.md) open in the editor. All other files open in their default macOS app.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Main App ---
 
 function App() {
@@ -304,6 +332,7 @@ function App() {
   const [config, setConfig] = useState<Config>({ folder: null, github_repo: null, github_token: null });
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: "ok" | "error"; msg: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
 
@@ -330,7 +359,13 @@ function App() {
     if (isMarkdown) {
       setSelectedPath(path);
     } else {
-      await openPath(path);
+      try {
+        await invoke("open_native", { path });
+      } catch (e) {
+        const msg = `Could not open file: ${e}`;
+        setSyncStatus({ type: "error", msg });
+        setTimeout(() => setSyncStatus(null), 8000);
+      }
     }
   }
 
@@ -365,6 +400,7 @@ function App() {
                 >
                   {syncing ? "⟳" : "↑"}
                 </button>
+                <button className="icon-btn" title="Help" onClick={() => setShowHelp(true)}>?</button>
                 <button className="icon-btn" title="Settings" onClick={() => setShowSettings(true)}>⚙</button>
               </div>
             </div>
@@ -392,9 +428,18 @@ function App() {
 
       {syncStatus && (
         <div className={`toast ${syncStatus.type}`}>
-          {syncStatus.msg === "up to date" ? "Up to date" : syncStatus.msg}
+          <span>{syncStatus.msg}</span>
+          <button
+            className="toast-copy-btn"
+            onClick={() => navigator.clipboard.writeText(syncStatus.msg)}
+            title="Copy"
+          >
+            Copy
+          </button>
         </div>
       )}
+
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
 
       {showSettings && (
         <SettingsPanel

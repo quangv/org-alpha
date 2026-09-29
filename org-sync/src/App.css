@@ -242,6 +242,24 @@ html, body, #root {
   font-size: 14px;
 }
 
+.help-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.help-item strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.help-item p {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+}
+
 /* ---- Shared form elements ---- */
 
 .section {
@@ -333,12 +351,30 @@ button:disabled {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 8px 16px;
+  padding: 8px 12px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
   z-index: 200;
-  pointer-events: none;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 480px;
+}
+
+.toast-copy-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: rgba(255,255,255,0.15);
+  color: inherit;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.toast-copy-btn:hover {
+  background: rgba(255,255,255,0.25);
 }
 
 .toast.ok {
