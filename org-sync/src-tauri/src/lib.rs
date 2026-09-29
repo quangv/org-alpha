@@ -14,6 +14,7 @@ use tauri::{
 struct Config {
     folder: Option<String>,
     github_repo: Option<String>,
+    github_token: Option<String>,
 }
 
 struct AppState(Mutex<Config>);
@@ -51,11 +52,19 @@ fn get_config(state: State<AppState>) -> Config {
 #[tauri::command]
 fn set_folder(app: AppHandle, state: State<AppState>, folder: String) -> Result<(), String> {
     if !git::is_git_repo(&folder) {
-        let repo_url = state.0.lock().unwrap().github_repo.clone();
+        let (repo_url, token) = {
+            let c = state.0.lock().unwrap();
+            (c.github_repo.clone(), c.github_token.clone())
+        };
         match repo_url {
             Some(url) => {
-                git::init(&folder)?;
-                git::set_remote(&folder, &url)?;
+                let effective_url = token.as_deref().map(|t| authed_url(&url, t)).unwrap_or(url);
+                if let Err(e) = git::clone(&effective_url, &folder) {
+                    let mut config = state.0.lock().unwrap();
+                    config.folder = None;
+                    save_config(&app, &config);
+                    return Err(format!("Clone failed: {}", e));
+                }
             }
             None => return Err("Choose a GitHub repo first, then select a folder".to_string()),
         }
@@ -68,11 +77,32 @@ fn set_folder(app: AppHandle, state: State<AppState>, folder: String) -> Result<
     Ok(())
 }
 
+fn authed_url(repo: &str, token: &str) -> String {
+    if let Some(rest) = repo.strip_prefix("https://") {
+        format!("https://{}@{}", token, rest)
+    } else {
+        repo.to_string()
+    }
+}
+
+#[tauri::command]
+fn set_github_token(app: AppHandle, state: State<AppState>, token: String) -> Result<(), String> {
+    let mut config = state.0.lock().unwrap();
+    config.github_token = Some(token);
+    save_config(&app, &config);
+    Ok(())
+}
+
 #[tauri::command]
 fn set_github_repo(app: AppHandle, state: State<AppState>, repo: String) -> Result<(), String> {
     let mut config = state.0.lock().unwrap();
-    if let Some(folder) = &config.folder {
-        git::set_remote(folder, &repo)?;
+    if let Some(folder) = config.folder.clone() {
+        if git::is_git_repo(&folder) {
+            let effective_url = config.github_token.as_deref()
+                .map(|t| authed_url(&repo, t))
+                .unwrap_or_else(|| repo.clone());
+            git::set_remote(&folder, &effective_url)?;
+        }
     }
     config.github_repo = Some(repo);
     save_config(&app, &config);
@@ -83,6 +113,9 @@ fn set_github_repo(app: AppHandle, state: State<AppState>, repo: String) -> Resu
 fn trigger_sync(state: State<AppState>) -> Result<String, String> {
     let config = state.0.lock().unwrap().clone();
     let folder = config.folder.ok_or("No folder configured")?;
+    if !git::is_git_repo(&folder) {
+        return Err("Folder is not a git repository — re-select it to clone from your remote".to_string());
+    }
     let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     git::sync(&folder, &format!("sync: {}", now))
 }
@@ -160,6 +193,7 @@ pub fn run() {
             get_config,
             set_folder,
             set_github_repo,
+            set_github_token,
             trigger_sync,
             get_watch_folder,
             set_watch_folder,

@@ -7,6 +7,7 @@ import "./App.css";
 interface Config {
   folder: string | null;
   github_repo: string | null;
+  github_token: string | null;
 }
 
 interface SyncResult {
@@ -18,6 +19,8 @@ function App() {
   const [folder, setFolder] = useState<string | null>(null);
   const [githubRepo, setGithubRepo] = useState<string>("");
   const [repoInput, setRepoInput] = useState<string>("");
+  const [tokenInput, setTokenInput] = useState<string>("");
+  const [tokenSaved, setTokenSaved] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -29,6 +32,7 @@ function App() {
       const repo = config.github_repo ?? "";
       setGithubRepo(repo);
       setRepoInput(repo);
+      setTokenInput(config.github_token ?? "");
     });
 
     const unlisten = listen<SyncResult>("sync-result", (event) => {
@@ -76,6 +80,17 @@ function App() {
     }
   }
 
+  async function saveToken() {
+    try {
+      await invoke("set_github_token", { token: tokenInput.trim() });
+      setTokenSaved(true);
+      setError(null);
+      setTimeout(() => setTokenSaved(false), 2000);
+    } catch (e) {
+      setError(e as string);
+    }
+  }
+
   async function syncNow() {
     setSyncing(true);
     try {
@@ -114,6 +129,33 @@ function App() {
       </div>
 
       <div className="section">
+        <label>
+          GitHub Token{" "}
+          <a
+            href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="help-link"
+          >
+            (how to create one)
+          </a>
+        </label>
+        <div className="repo-row">
+          <input
+            className="repo-input"
+            type="password"
+            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && saveToken()}
+          />
+          <button onClick={saveToken} disabled={!tokenInput.trim()}>
+            {tokenSaved ? "Saved" : "Save"}
+          </button>
+        </div>
+      </div>
+
+      <div className="section">
         <label>Local Folder</label>
         <div className="folder-row">
           <span className="folder-path">{folder ?? "None selected"}</span>
@@ -131,13 +173,16 @@ function App() {
 
       {lastSync && (
         <div className="section status ok">
-          Last sync: {lastSync}
+          {lastSync === "up to date" ? "Up to date" : `Last sync: ${lastSync}`}
         </div>
       )}
 
       {error && (
         <div className="section status error">
-          Error: {error}
+          <div className="error-row">
+            <pre className="error-text">{error}</pre>
+            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(error)}>Copy</button>
+          </div>
         </div>
       )}
     </div>

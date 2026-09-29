@@ -127,6 +127,11 @@ button:disabled {
   color: #721c24;
 }
 
+.help-link {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
 .hint {
   font-size: 11px;
   color: #856404;
@@ -134,6 +139,27 @@ button:disabled {
   padding: 5px 8px;
   border-radius: 4px;
   margin-top: 6px;
+}
+
+.error-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.error-text {
+  flex: 1;
+  margin: 0;
+  font-size: 11px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 2px 8px;
 }
 
 @media (prefers-color-scheme: dark) {
