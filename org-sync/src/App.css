@@ -410,9 +410,30 @@ button:disabled {
   z-index: 200;
   pointer-events: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   max-width: 480px;
+}
+
+.toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.toast-details-btn {
+  padding: 1px 6px;
+  font-size: 10px;
+  background: rgba(255,255,255,0.1);
+  color: inherit;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  align-self: flex-start;
+  cursor: pointer;
 }
 
 .toast-copy-btn {

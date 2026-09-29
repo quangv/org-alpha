@@ -365,6 +365,33 @@ function SettingsPanel({ config, onClose, onFolderChange }: SettingsProps) {
 
 // --- Help Modal ---
 
+function ErrorToast({ msg }: { msg: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const lines = msg.trim().split("\n");
+  const summary = lines[0].length > 60 ? lines[0].slice(0, 57) + "…" : lines[0];
+  const hasDetails = lines.length > 1 || lines[0].length > 60;
+
+  return (
+    <div className="toast error">
+      <div className="toast-body">
+        <span>{expanded ? msg : summary}</span>
+        {hasDetails && (
+          <button className="toast-details-btn" onClick={() => setExpanded((v) => !v)}>
+            {expanded ? "Less" : "Details"}
+          </button>
+        )}
+      </div>
+      <button
+        className="toast-copy-btn"
+        onClick={() => navigator.clipboard.writeText(msg)}
+        title="Copy"
+      >
+        Copy
+      </button>
+    </div>
+  );
+}
+
 function HelpModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -539,16 +566,7 @@ function App() {
       )}
 
       {syncStatus?.type === "error" && (
-        <div className="toast error">
-          <span>{syncStatus.msg}</span>
-          <button
-            className="toast-copy-btn"
-            onClick={() => navigator.clipboard.writeText(syncStatus.msg)}
-            title="Copy"
-          >
-            Copy
-          </button>
-        </div>
+        <ErrorToast msg={syncStatus.msg} />
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}

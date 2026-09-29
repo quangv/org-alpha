@@ -244,7 +244,16 @@ pub fn run() {
                 ],
             )?;
 
-            let menu = Menu::with_items(app, &[&app_submenu, &edit_submenu])?;
+            let test_error_item = MenuItem::with_id(app, "test_error", "Test Error Toast", true, None::<&str>)?;
+            let debug_submenu = Submenu::with_id_and_items(
+                app,
+                "debug",
+                "Debug",
+                true,
+                &[&test_error_item],
+            )?;
+
+            let menu = Menu::with_items(app, &[&app_submenu, &edit_submenu, &debug_submenu])?;
             app.set_menu(menu)?;
 
             app.on_menu_event(|app, event| match event.id().as_ref() {
@@ -267,6 +276,11 @@ pub fn run() {
                         };
                         let _ = app.emit("sync-result", payload);
                     }
+                }
+                "test_error" => {
+                    let msg = "remote: Internal Server Error\nremote: Request ID D06C:28B2F:3FE18D:56462B:6ABBD151\nremote: Time 2026-09-29T14:55:13Z\nTo https://github.com/quangv/kb-store.git\n ! [remote rejected] HEAD -> main (Internal Server Error)\nerror: failed to push some refs to 'https://github.com/quangv/kb-store.git'";
+                    let payload = serde_json::json!({ "status": "error", "message": msg });
+                    let _ = app.emit("sync-result", payload);
                 }
                 _ => {}
             });
