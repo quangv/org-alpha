@@ -16,7 +16,8 @@
         "width": 900,
         "height": 600,
         "visible": true,
-        "resizable": true
+        "resizable": true,
+        "acceptFirstMouse": true
       }
     ],
     "trayIcon": {
