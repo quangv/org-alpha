@@ -23,16 +23,69 @@ interface DirEntry {
 
 // --- File Tree ---
 
-interface TreeNodeProps {
-  entry: DirEntry;
+interface NewFileInputRowProps {
+  depth: number;
+  value: string;
+  onChange: (v: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function NewFileInputRow({ depth, value, onChange, onConfirm, onCancel }: NewFileInputRowProps) {
+  return (
+    <div className="tree-item new-file-item" style={{ paddingLeft: 12 + depth * 14 }}>
+      <span className="tree-icon file-icon">·</span>
+      <input
+        className="new-file-input"
+        placeholder="filename.md"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onConfirm();
+          if (e.key === "Escape") onCancel();
+        }}
+        autoFocus
+      />
+    </div>
+  );
+}
+
+interface TreeSharedProps {
   selectedPath: string | null;
   onSelect: (path: string, isDir: boolean) => void;
+  onNewFile: (parentPath: string) => void;
+  creatingInPath: string | null;
+  newFileName: string;
+  onNewFileNameChange: (v: string) => void;
+  onConfirmNewFile: () => void;
+  onCancelNewFile: () => void;
+  refreshKey: number;
+}
+
+interface TreeNodeProps extends TreeSharedProps {
+  entry: DirEntry;
   depth: number;
 }
 
-function TreeNode({ entry, selectedPath, onSelect, depth }: TreeNodeProps) {
+function TreeNode({ entry, depth, selectedPath, onSelect, onNewFile, creatingInPath, newFileName, onNewFileNameChange, onConfirmNewFile, onCancelNewFile, refreshKey }: TreeNodeProps) {
+  const isCreatingHere = creatingInPath === entry.path;
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<DirEntry[]>([]);
+
+  useEffect(() => {
+    if (isCreatingHere && !expanded) {
+      invoke<DirEntry[]>("read_dir", { path: entry.path }).then((kids) => {
+        setChildren(kids);
+        setExpanded(true);
+      });
+    }
+  }, [isCreatingHere]);
+
+  useEffect(() => {
+    if (expanded) {
+      invoke<DirEntry[]>("read_dir", { path: entry.path }).then(setChildren);
+    }
+  }, [refreshKey]);
 
   async function toggle() {
     if (!entry.is_dir) return;
@@ -44,19 +97,14 @@ function TreeNode({ entry, selectedPath, onSelect, depth }: TreeNodeProps) {
   }
 
   const isSelected = selectedPath === entry.path;
+  const shared: TreeSharedProps = { selectedPath, onSelect, onNewFile, creatingInPath, newFileName, onNewFileNameChange, onConfirmNewFile, onCancelNewFile, refreshKey };
 
   return (
     <div>
       <div
         className={`tree-item${isSelected ? " selected" : ""}`}
         style={{ paddingLeft: 12 + depth * 14 }}
-        onClick={() => {
-          if (entry.is_dir) {
-            toggle();
-          } else {
-            onSelect(entry.path, false);
-          }
-        }}
+        onClick={() => { if (entry.is_dir) toggle(); else onSelect(entry.path, false); }}
       >
         {entry.is_dir ? (
           <span className="tree-icon">{expanded ? "▾" : "▸"}</span>
@@ -64,44 +112,60 @@ function TreeNode({ entry, selectedPath, onSelect, depth }: TreeNodeProps) {
           <span className="tree-icon file-icon">·</span>
         )}
         <span className="tree-name">{entry.name}</span>
+        {entry.is_dir && (
+          <button
+            className="tree-new-file-btn"
+            title="New file here"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { e.stopPropagation(); onNewFile(entry.path); }}
+          >+</button>
+        )}
       </div>
-      {entry.is_dir && expanded && children.map((child) => (
-        <TreeNode
-          key={child.path}
-          entry={child}
-          selectedPath={selectedPath}
-          onSelect={onSelect}
-          depth={depth + 1}
-        />
-      ))}
+      {entry.is_dir && expanded && (
+        <>
+          {children.map((child) => (
+            <TreeNode key={child.path} entry={child} depth={depth + 1} {...shared} />
+          ))}
+          {isCreatingHere && (
+            <NewFileInputRow
+              depth={depth + 1}
+              value={newFileName}
+              onChange={onNewFileNameChange}
+              onConfirm={onConfirmNewFile}
+              onCancel={onCancelNewFile}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-interface FileTreeProps {
+interface FileTreeProps extends TreeSharedProps {
   rootPath: string;
-  selectedPath: string | null;
-  onSelect: (path: string, isDir: boolean) => void;
 }
 
-function FileTree({ rootPath, selectedPath, onSelect }: FileTreeProps) {
+function FileTree({ rootPath, ...shared }: FileTreeProps) {
   const [entries, setEntries] = useState<DirEntry[]>([]);
 
   useEffect(() => {
     invoke<DirEntry[]>("read_dir", { path: rootPath }).then(setEntries);
-  }, [rootPath]);
+  }, [rootPath, shared.refreshKey]);
 
   return (
     <div className="file-tree">
       {entries.map((entry) => (
-        <TreeNode
-          key={entry.path}
-          entry={entry}
-          selectedPath={selectedPath}
-          onSelect={onSelect}
-          depth={0}
-        />
+        <TreeNode key={entry.path} entry={entry} depth={0} {...shared} />
       ))}
+      {shared.creatingInPath === rootPath && (
+        <NewFileInputRow
+          depth={0}
+          value={shared.newFileName}
+          onChange={shared.onNewFileNameChange}
+          onConfirm={shared.onConfirmNewFile}
+          onCancel={shared.onCancelNewFile}
+        />
+      )}
     </div>
   );
 }
@@ -335,6 +399,9 @@ function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: "ok" | "error"; msg: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
+  const [newFileName, setNewFileName] = useState("");
+  const [treeRefreshKey, setTreeRefreshKey] = useState(0);
 
   useEffect(() => {
     invoke<Config>("get_config").then((c) => {
@@ -369,6 +436,30 @@ function App() {
     }
   }
 
+  function startCreatingFile(parentPath?: string) {
+    setNewFileName("");
+    setCreatingInPath(parentPath ?? folder);
+  }
+
+  async function confirmNewFile() {
+    if (!creatingInPath || !newFileName.trim()) {
+      setCreatingInPath(null);
+      return;
+    }
+    let name = newFileName.trim();
+    if (!name.endsWith(".md")) name += ".md";
+    const path = `${creatingInPath}/${name}`;
+    try {
+      await invoke("create_file", { path });
+      setTreeRefreshKey((k) => k + 1);
+      setSelectedPath(path);
+    } catch (e) {
+      setSyncStatus({ type: "error", msg: e as string });
+      setTimeout(() => setSyncStatus(null), 4000);
+    }
+    setCreatingInPath(null);
+  }
+
   async function syncNow() {
     setSyncing(true);
     try {
@@ -392,6 +483,7 @@ function App() {
             <div className="sidebar-header">
               <span className="sidebar-title">{folder.split("/").pop()}</span>
               <div className="sidebar-actions">
+                <button className="icon-btn" title="New file" onClick={() => startCreatingFile()}>+</button>
                 <button
                   className="icon-btn"
                   title="Sync now"
@@ -404,7 +496,18 @@ function App() {
                 <button className="icon-btn" title="Settings" onClick={() => setShowSettings(true)}>⚙</button>
               </div>
             </div>
-            <FileTree rootPath={folder} selectedPath={selectedPath} onSelect={handleSelect} />
+            <FileTree
+              rootPath={folder}
+              selectedPath={selectedPath}
+              onSelect={handleSelect}
+              onNewFile={startCreatingFile}
+              creatingInPath={creatingInPath}
+              newFileName={newFileName}
+              onNewFileNameChange={setNewFileName}
+              onConfirmNewFile={confirmNewFile}
+              onCancelNewFile={() => setCreatingInPath(null)}
+              refreshKey={treeRefreshKey}
+            />
           </div>
           <div className="main-area">
             {selectedPath ? (

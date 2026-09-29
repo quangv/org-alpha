@@ -174,6 +174,18 @@ fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn create_file(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if let Some(parent) = p.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    if p.exists() {
+        return Err(format!("File already exists: {}", path));
+    }
+    fs::write(&path, "").map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn open_native(path: String) -> Result<(), String> {
     std::process::Command::new("open")
         .arg(&path)
@@ -256,6 +268,7 @@ pub fn run() {
             read_dir,
             read_file,
             write_file,
+            create_file,
             open_native,
         ])
         .run(tauri::generate_context!())

@@ -68,6 +68,47 @@ html, body, #root {
   padding: 4px 0;
 }
 
+.new-file-item {
+  gap: 4px;
+}
+
+.new-file-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 1px 5px;
+  outline: none;
+}
+
+.new-file-input:focus {
+  border-color: var(--accent);
+}
+
+.tree-new-file-btn {
+  display: none;
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text);
+  opacity: 0.5;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.tree-new-file-btn:hover {
+  opacity: 1;
+}
+
+.tree-item:hover .tree-new-file-btn {
+  display: block;
+}
+
 .tree-item {
   display: flex;
   align-items: center;
