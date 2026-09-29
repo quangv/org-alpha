@@ -51,7 +51,14 @@ fn get_config(state: State<AppState>) -> Config {
 #[tauri::command]
 fn set_folder(app: AppHandle, state: State<AppState>, folder: String) -> Result<(), String> {
     if !git::is_git_repo(&folder) {
-        return Err(format!("{} is not a git repository", folder));
+        let repo_url = state.0.lock().unwrap().github_repo.clone();
+        match repo_url {
+            Some(url) => {
+                git::init(&folder)?;
+                git::set_remote(&folder, &url)?;
+            }
+            None => return Err("Choose a GitHub repo first, then select a folder".to_string()),
+        }
     }
     let mut config = state.0.lock().unwrap();
     config.folder = Some(folder.clone());

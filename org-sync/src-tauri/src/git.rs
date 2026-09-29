@@ -20,6 +20,19 @@ pub fn is_git_repo(path: &str) -> bool {
     Path::new(path).join(".git").exists()
 }
 
+pub fn init(path: &str) -> Result<(), String> {
+    let out = Command::new("git")
+        .arg("init")
+        .arg(path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
 pub fn set_remote(repo: &str, url: &str) -> Result<(), String> {
     let remotes = git(repo, &["remote"])?;
     if remotes.lines().any(|r| r == "origin") {

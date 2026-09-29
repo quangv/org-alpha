@@ -93,14 +93,6 @@ function App() {
       <h1>org-sync</h1>
 
       <div className="section">
-        <label>Local Folder</label>
-        <div className="folder-row">
-          <span className="folder-path">{folder ?? "None selected"}</span>
-          <button onClick={pickFolder}>Choose</button>
-        </div>
-      </div>
-
-      <div className="section">
         <label>GitHub Repo</label>
         <div className="repo-row">
           <input
@@ -114,6 +106,14 @@ function App() {
           <button onClick={saveRepo} disabled={!repoInput.trim() || !repoChanged}>
             {repoSaved ? "Saved" : "Save"}
           </button>
+        </div>
+      </div>
+
+      <div className="section">
+        <label>Local Folder</label>
+        <div className="folder-row">
+          <span className="folder-path">{folder ?? "None selected"}</span>
+          <button onClick={pickFolder} disabled={!githubRepo}>Choose</button>
         </div>
       </div>
 
