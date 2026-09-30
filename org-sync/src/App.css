@@ -220,16 +220,30 @@ html, body, #root {
 
 .editor-textarea {
   flex: 1;
-  border: none;
-  outline: none;
-  resize: none;
-  padding: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-textarea .cm-editor {
+  flex: 1;
+  height: 100%;
   font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: #1a1a1a;
-  background: #fff;
+}
+
+.editor-textarea .cm-scroller {
+  overflow: auto;
+  padding: 20px;
+}
+
+.editor-textarea .cm-content {
   tab-size: 2;
+}
+
+.editor-textarea .cm-focused {
+  outline: none;
 }
 
 /* ---- Setup screen ---- */
@@ -543,7 +557,7 @@ button:disabled {
     color: #ccc;
   }
 
-  .editor-textarea {
+  .editor-textarea .cm-editor {
     background: #1e1e1e;
     color: #e8e8e8;
   }

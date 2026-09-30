@@ -1,4 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { markdown } from "@codemirror/lang-markdown";
+import { search } from "@codemirror/search";
+import { oneDark } from "@codemirror/theme-one-dark";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -199,6 +203,8 @@ function FileTree({ rootPath, ...shared }: FileTreeProps) {
 
 // --- Markdown Editor ---
 
+const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
 function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
   const [content, setContent] = useState("");
   const [saved, setSaved] = useState(true);
@@ -224,6 +230,7 @@ function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
     }, 800);
   }, [path]);
 
+  const extensions = useMemo(() => [markdown(), search()], []);
   const filename = path.split("/").pop() ?? path;
 
   return (
@@ -237,11 +244,13 @@ function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
           </span>
         </div>
       </div>
-      <textarea
+      <CodeMirror
         className="editor-textarea"
         value={content}
-        onChange={(e) => handleChange(e.target.value)}
-        spellCheck={false}
+        onChange={handleChange}
+        extensions={extensions}
+        theme={isDark ? oneDark : "light"}
+        basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
       />
     </div>
   );
