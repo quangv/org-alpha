@@ -215,6 +215,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, { path: string; synced: 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const matchCounterRef = useRef<HTMLSpanElement | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     invoke<string>("read_file", { path }).then((c) => {
@@ -224,7 +225,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, { path: string; synced: 
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [path]);
+  }, [path, refreshKey]);
 
   const handleChange = useCallback((val: string) => {
     setContent(val);
@@ -293,7 +294,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, { path: string; synced: 
   function handlePrint() {
     const body = marked(content) as string;
     const html = `<!DOCTYPE html><html><head><title>${filename}</title><style>
-      body { font-family: Georgia, serif; max-width: 740px; margin: 40px auto; padding: 0 24px; font-size: 15px; line-height: 1.7; color: #111; }
+      body { font-family: Georgia, serif; width: 6.5in; margin: 0.75in auto; padding: 0; font-size: 12pt; line-height: 1.6; color: #111; }
       h1,h2,h3,h4,h5,h6 { margin: 1.4em 0 0.4em; font-weight: 600; line-height: 1.25; }
       h1 { font-size: 2em; } h2 { font-size: 1.5em; } h3 { font-size: 1.25em; }
       p { margin: 0.8em 0; }
@@ -320,6 +321,11 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, { path: string; synced: 
           <span className={`save-indicator${saved ? " saved" : ""}`}>
             {saved ? "saved" : "saving…"}
           </span>
+          <button
+            className="icon-btn"
+            title="Reload file from disk"
+            onClick={() => setRefreshKey((k) => k + 1)}
+          >↺</button>
           <button
             className={`icon-btn preview-toggle${showPreview ? " active" : ""}`}
             title={showPreview ? "Hide preview" : "Show preview"}
