@@ -218,6 +218,17 @@ html, body, #root {
   color: #5cb85c;
 }
 
+.editor-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.editor-body.split .editor-textarea {
+  flex: 1;
+  border-right: 1px solid #e8e8e8;
+}
+
 .editor-textarea {
   flex: 1;
   overflow: hidden;
@@ -244,6 +255,89 @@ html, body, #root {
 
 .editor-textarea .cm-focused {
   outline: none;
+}
+
+.preview-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.preview-pane h1, .preview-pane h2, .preview-pane h3,
+.preview-pane h4, .preview-pane h5, .preview-pane h6 {
+  margin: 1.3em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.preview-pane h1 { font-size: 1.9em; }
+.preview-pane h2 { font-size: 1.45em; }
+.preview-pane h3 { font-size: 1.2em; }
+
+.preview-pane p { margin: 0.75em 0; }
+
+.preview-pane pre {
+  background: #f6f6f6;
+  border-radius: 5px;
+  padding: 12px 16px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.preview-pane code {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 0.88em;
+  background: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.preview-pane pre code {
+  background: none;
+  padding: 0;
+}
+
+.preview-pane blockquote {
+  border-left: 3px solid #ccc;
+  margin: 1em 0;
+  padding: 0 16px;
+  color: #555;
+}
+
+.preview-pane img { max-width: 100%; }
+
+.preview-pane table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.preview-pane th, .preview-pane td {
+  border: 1px solid #e0e0e0;
+  padding: 6px 10px;
+}
+
+.preview-pane hr {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 2em 0;
+}
+
+.preview-pane a { color: #396cd8; }
+
+.preview-pane ul, .preview-pane ol {
+  padding-left: 1.5em;
+  margin: 0.6em 0;
+}
+
+.icon-btn.active {
+  background: rgba(57, 108, 216, 0.12);
+  color: #396cd8;
 }
 
 .cm-search-count {
@@ -524,6 +618,44 @@ button:disabled {
   word-break: break-all;
 }
 
+/* ---- Print ---- */
+
+#print-root { display: none; }
+
+@media print {
+  body > *:not(#print-root) { display: none !important; }
+
+  #print-root {
+    display: block;
+    font-family: Georgia, serif;
+    font-size: 15px;
+    line-height: 1.7;
+    color: #111;
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  #print-root h1, #print-root h2, #print-root h3,
+  #print-root h4, #print-root h5, #print-root h6 {
+    margin: 1.4em 0 0.4em; font-weight: 600; line-height: 1.25;
+  }
+  #print-root h1 { font-size: 2em; }
+  #print-root h2 { font-size: 1.5em; }
+  #print-root h3 { font-size: 1.25em; }
+  #print-root p { margin: 0.8em 0; }
+  #print-root pre { background: #f6f6f6; padding: 12px 16px; font-size: 13px; }
+  #print-root code { font-family: monospace; font-size: 0.9em; background: #f0f0f0; padding: 1px 4px; }
+  #print-root pre code { background: none; padding: 0; }
+  #print-root blockquote { border-left: 3px solid #ccc; margin: 0; padding: 0 16px; color: #555; }
+  #print-root img { max-width: 100%; }
+  #print-root table { border-collapse: collapse; width: 100%; }
+  #print-root th, #print-root td { border: 1px solid #ddd; padding: 6px 10px; }
+  #print-root hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+  #print-root a { color: #396cd8; }
+  #print-root ul, #print-root ol { padding-left: 1.5em; margin: 0.6em 0; }
+}
+
 /* ---- Dark mode ---- */
 
 @media (prefers-color-scheme: dark) {
@@ -563,6 +695,26 @@ button:disabled {
 
   .editor-filename {
     color: #ccc;
+  }
+
+  .editor-body.split .editor-textarea {
+    border-right-color: #333;
+  }
+
+  .preview-pane {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+
+  .preview-pane pre { background: #2a2a2a; }
+  .preview-pane code { background: #2a2a2a; }
+  .preview-pane blockquote { border-left-color: #555; color: #aaa; }
+  .preview-pane th, .preview-pane td { border-color: #3a3a3a; }
+  .preview-pane hr { border-top-color: #3a3a3a; }
+
+  .icon-btn.active {
+    background: rgba(90, 138, 248, 0.15);
+    color: #5a8af8;
   }
 
   .editor-textarea .cm-editor {

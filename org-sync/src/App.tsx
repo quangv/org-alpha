@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from "react";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { ViewUpdate } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
@@ -7,6 +7,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import { marked } from "marked";
 import "./App.css";
 
 interface Config {
@@ -206,7 +207,9 @@ function FileTree({ rootPath, ...shared }: FileTreeProps) {
 
 const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
+interface MarkdownEditorHandle { print: () => void; }
+
+const MarkdownEditor = forwardRef<MarkdownEditorHandle, { path: string; synced: boolean }>(function MarkdownEditor({ path, synced }, ref) {
   const [content, setContent] = useState("");
   const [saved, setSaved] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -277,8 +280,36 @@ function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
     }
   }, []);
 
+  const [showPreview, setShowPreview] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
   const extensions = useMemo(() => [markdown(), search()], []);
   const filename = path.split("/").pop() ?? path;
+
+  const previewHtml = useMemo(() => showPreview ? marked(content) as string : "", [content, showPreview]);
+
+  useImperativeHandle(ref, () => ({ print: handlePrint }));
+
+  function handlePrint() {
+    const body = marked(content) as string;
+    const html = `<!DOCTYPE html><html><head><title>${filename}</title><style>
+      body { font-family: Georgia, serif; max-width: 740px; margin: 40px auto; padding: 0 24px; font-size: 15px; line-height: 1.7; color: #111; }
+      h1,h2,h3,h4,h5,h6 { margin: 1.4em 0 0.4em; font-weight: 600; line-height: 1.25; }
+      h1 { font-size: 2em; } h2 { font-size: 1.5em; } h3 { font-size: 1.25em; }
+      p { margin: 0.8em 0; }
+      pre { background: #f6f6f6; border-radius: 4px; padding: 12px 16px; font-size: 13px; }
+      code { font-family: monospace; font-size: 0.9em; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+      pre code { background: none; padding: 0; }
+      blockquote { border-left: 3px solid #ccc; margin: 0; padding: 0 16px; color: #555; }
+      img { max-width: 100%; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 6px 10px; }
+      hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+      ul, ol { padding-left: 1.5em; margin: 0.6em 0; }
+      a { color: #396cd8; }
+    </style></head><body>${body}<script>window.onload=function(){window.print();}</script></body></html>`;
+    invoke("print_html", { html });
+  }
 
   return (
     <div className="editor-pane">
@@ -289,21 +320,31 @@ function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
           <span className={`save-indicator${saved ? " saved" : ""}`}>
             {saved ? "saved" : "saving…"}
           </span>
+          <button
+            className={`icon-btn preview-toggle${showPreview ? " active" : ""}`}
+            title={showPreview ? "Hide preview" : "Show preview"}
+            onClick={() => setShowPreview((v) => !v)}
+          >⊞</button>
         </div>
       </div>
-      <CodeMirror
-        ref={editorRef}
-        className="editor-textarea"
-        value={content}
-        onChange={handleChange}
-        onUpdate={handleUpdate}
-        extensions={extensions}
-        theme={isDark ? oneDark : "light"}
-        basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
-      />
+      <div className={`editor-body${showPreview ? " split" : ""}`}>
+        <CodeMirror
+          ref={editorRef}
+          className="editor-textarea"
+          value={content}
+          onChange={handleChange}
+          onUpdate={handleUpdate}
+          extensions={extensions}
+          theme={isDark ? oneDark : "light"}
+          basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
+        />
+        {showPreview && (
+          <div ref={previewRef} className="preview-pane" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+        )}
+      </div>
     </div>
   );
-}
+});
 
 // --- Settings Panel ---
 
@@ -518,6 +559,7 @@ function App() {
   const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
+  const editorHandle = useRef<MarkdownEditorHandle>(null);
 
   useEffect(() => {
     invoke<Config>("get_config").then((c) => {
@@ -539,7 +581,11 @@ function App() {
       }
     });
 
-    return () => { unlisten.then((f) => f()); };
+    const unlistenPrint = listen("print", () => {
+      editorHandle.current?.print();
+    });
+
+    return () => { unlisten.then((f) => f()); unlistenPrint.then((f) => f()); };
   }, []);
 
   function storeLastOpen(filePath: string) {
@@ -652,7 +698,7 @@ function App() {
           </div>
           <div className="main-area">
             {selectedPath ? (
-              <MarkdownEditor key={selectedPath} path={selectedPath} synced={syncStatus?.type === "ok"} />
+              <MarkdownEditor key={selectedPath} ref={editorHandle} path={selectedPath} synced={syncStatus?.type === "ok"} />
             ) : (
               <div className="empty-state">Select a file to edit</div>
             )}

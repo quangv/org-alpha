@@ -186,6 +186,17 @@ fn create_file(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn print_html(html: String) -> Result<(), String> {
+    let path = std::env::temp_dir().join("org-sync-print.html");
+    fs::write(&path, html).map_err(|e| e.to_string())?;
+    std::process::Command::new("open")
+        .arg(&path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn open_native(path: String) -> Result<(), String> {
     std::process::Command::new("open")
         .arg(&path)
@@ -228,6 +239,15 @@ pub fn run() {
                 &[&settings_item, &sync_item, &separator, &quit_item],
             )?;
 
+            let print_item = MenuItem::with_id(app, "print", "Print...", true, Some("CmdOrCtrl+P"))?;
+            let file_submenu = Submenu::with_id_and_items(
+                app,
+                "file",
+                "File",
+                true,
+                &[&print_item],
+            )?;
+
             let edit_submenu = Submenu::with_id_and_items(
                 app,
                 "edit",
@@ -245,15 +265,16 @@ pub fn run() {
             )?;
 
             let test_error_item = MenuItem::with_id(app, "test_error", "Test Error Toast", true, None::<&str>)?;
+            let test_print_item = MenuItem::with_id(app, "test_print", "Test Print Dialog", true, None::<&str>)?;
             let debug_submenu = Submenu::with_id_and_items(
                 app,
                 "debug",
                 "Debug",
                 true,
-                &[&test_error_item],
+                &[&test_error_item, &test_print_item],
             )?;
 
-            let menu = Menu::with_items(app, &[&app_submenu, &edit_submenu, &debug_submenu])?;
+            let menu = Menu::with_items(app, &[&app_submenu, &file_submenu, &edit_submenu, &debug_submenu])?;
             app.set_menu(menu)?;
 
             app.on_menu_event(|app, event| match event.id().as_ref() {
@@ -276,6 +297,14 @@ pub fn run() {
                         };
                         let _ = app.emit("sync-result", payload);
                     }
+                }
+                "print" => {
+                    let _ = app.emit("print", ());
+                }
+                "test_print" => {
+                    let path = std::env::temp_dir().join("org-sync-print.html");
+                    let _ = fs::write(&path, "<!DOCTYPE html><html><body><h1>Test Print</h1><p>If the print dialog appeared, printing works.</p><script>window.onload=function(){window.print();}</script></body></html>");
+                    let _ = std::process::Command::new("open").arg(&path).spawn();
                 }
                 "test_error" => {
                     let msg = "remote: Internal Server Error\nremote: Request ID D06C:28B2F:3FE18D:56462B:6ABBD151\nremote: Time 2026-09-29T14:55:13Z\nTo https://github.com/quangv/kb-store.git\n ! [remote rejected] HEAD -> main (Internal Server Error)\nerror: failed to push some refs to 'https://github.com/quangv/kb-store.git'";
@@ -300,6 +329,7 @@ pub fn run() {
             write_file,
             create_file,
             open_native,
+        print_html,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
