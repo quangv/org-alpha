@@ -440,7 +440,7 @@ function App() {
       if (!c.folder || !c.github_repo) {
         setShowSettings(true);
       } else {
-        const last = localStorage.getItem("lastOpenFile");
+        const last = localStorage.getItem(`lastOpenFile:${c.folder}`);
         if (last) setSelectedPath(last);
       }
     });
@@ -460,7 +460,7 @@ function App() {
     const isMarkdown = path.endsWith(".md") || path.endsWith(".markdown");
     if (isMarkdown) {
       setSelectedPath(path);
-      localStorage.setItem("lastOpenFile", path);
+      if (folder) localStorage.setItem(`lastOpenFile:${folder}`, path);
     } else {
       try {
         await invoke("open_native", { path });
@@ -579,6 +579,8 @@ function App() {
             setFolder(f);
             setConfig((c) => ({ ...c, folder: f }));
             setShowSettings(false);
+            const last = localStorage.getItem(`lastOpenFile:${f}`);
+            setSelectedPath(last ?? null);
           }}
         />
       )}
