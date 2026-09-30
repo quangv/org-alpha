@@ -53,6 +53,7 @@ function NewFileInputRow({ depth, value, onChange, onConfirm, onCancel }: NewFil
 interface TreeSharedProps {
   selectedPath: string | null;
   onSelect: (path: string, isDir: boolean) => void;
+  onFolderSelect: (path: string) => void;
   onNewFile: (parentPath: string) => void;
   creatingInPath: string | null;
   newFileName: string;
@@ -60,6 +61,7 @@ interface TreeSharedProps {
   onConfirmNewFile: () => void;
   onCancelNewFile: () => void;
   refreshKey: number;
+  autoExpandTo: string | null;
 }
 
 interface TreeNodeProps extends TreeSharedProps {
@@ -67,7 +69,7 @@ interface TreeNodeProps extends TreeSharedProps {
   depth: number;
 }
 
-function TreeNode({ entry, depth, selectedPath, onSelect, onNewFile, creatingInPath, newFileName, onNewFileNameChange, onConfirmNewFile, onCancelNewFile, refreshKey }: TreeNodeProps) {
+function TreeNode({ entry, depth, selectedPath, onSelect, onFolderSelect, onNewFile, creatingInPath, newFileName, onNewFileNameChange, onConfirmNewFile, onCancelNewFile, refreshKey, autoExpandTo }: TreeNodeProps) {
   const isCreatingHere = creatingInPath === entry.path;
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<DirEntry[]>([]);
@@ -87,27 +89,51 @@ function TreeNode({ entry, depth, selectedPath, onSelect, onNewFile, creatingInP
     }
   }, [refreshKey]);
 
-  async function toggle() {
-    if (!entry.is_dir) return;
-    if (!expanded) {
-      const kids = await invoke<DirEntry[]>("read_dir", { path: entry.path });
-      setChildren(kids);
+  // Auto-expand when we're an ancestor of the target path
+  useEffect(() => {
+    if (entry.is_dir && autoExpandTo && autoExpandTo.startsWith(entry.path + "/") && !expanded) {
+      invoke<DirEntry[]>("read_dir", { path: entry.path }).then((kids) => {
+        setChildren(kids);
+        setExpanded(true);
+      });
     }
-    setExpanded((v) => !v);
+  }, [autoExpandTo]);
+
+  async function expand() {
+    if (expanded) return;
+    const kids = await invoke<DirEntry[]>("read_dir", { path: entry.path });
+    setChildren(kids);
+    setExpanded(true);
+  }
+
+  async function toggleCollapse(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!expanded) {
+      await expand();
+    } else {
+      setExpanded(false);
+    }
   }
 
   const isSelected = selectedPath === entry.path;
-  const shared: TreeSharedProps = { selectedPath, onSelect, onNewFile, creatingInPath, newFileName, onNewFileNameChange, onConfirmNewFile, onCancelNewFile, refreshKey };
+  const shared: TreeSharedProps = { selectedPath, onSelect, onFolderSelect, onNewFile, creatingInPath, newFileName, onNewFileNameChange, onConfirmNewFile, onCancelNewFile, refreshKey, autoExpandTo };
 
   return (
     <div>
       <div
         className={`tree-item${isSelected ? " selected" : ""}`}
         style={{ paddingLeft: 12 + depth * 14 }}
-        onClick={() => { if (entry.is_dir) toggle(); else onSelect(entry.path, false); }}
+        onClick={() => {
+          if (entry.is_dir) {
+            expand();
+            onFolderSelect(entry.path);
+          } else {
+            onSelect(entry.path, false);
+          }
+        }}
       >
         {entry.is_dir ? (
-          <span className="tree-icon">{expanded ? "▾" : "▸"}</span>
+          <span className="tree-icon" onClick={toggleCollapse}>{expanded ? "▾" : "▸"}</span>
         ) : (
           <span className="tree-icon file-icon">·</span>
         )}
@@ -157,6 +183,7 @@ function FileTree({ rootPath, ...shared }: FileTreeProps) {
       {entries.map((entry) => (
         <TreeNode key={entry.path} entry={entry} depth={0} {...shared} />
       ))}
+
       {shared.creatingInPath === rootPath && (
         <NewFileInputRow
           depth={0}
@@ -425,6 +452,7 @@ function App() {
   const [folder, setFolder] = useState<string | null>(null);
   const [config, setConfig] = useState<Config>({ folder: null, github_repo: null, github_token: null });
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [autoExpandTo, setAutoExpandTo] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: "ok" | "error"; msg: string } | null>(null);
@@ -441,7 +469,7 @@ function App() {
         setShowSettings(true);
       } else {
         const last = localStorage.getItem(`lastOpenFile:${c.folder}`);
-        if (last) setSelectedPath(last);
+        if (last) { setSelectedPath(last); setAutoExpandTo(last); }
       }
     });
 
@@ -456,11 +484,23 @@ function App() {
     return () => { unlisten.then((f) => f()); };
   }, []);
 
+  function storeLastOpen(filePath: string) {
+    if (!folder) return;
+    const folderDepth = folder.split("/").length;
+    const parts = filePath.split("/");
+    // store for root folder and every intermediate subfolder
+    for (let i = folderDepth; i < parts.length; i++) {
+      const ancestor = parts.slice(0, i).join("/");
+      if (ancestor) localStorage.setItem(`lastOpenFile:${ancestor}`, filePath);
+    }
+  }
+
   async function handleSelect(path: string, _isDir: boolean) {
     const isMarkdown = path.endsWith(".md") || path.endsWith(".markdown");
     if (isMarkdown) {
       setSelectedPath(path);
-      if (folder) localStorage.setItem(`lastOpenFile:${folder}`, path);
+      setAutoExpandTo(null);
+      storeLastOpen(path);
     } else {
       try {
         await invoke("open_native", { path });
@@ -470,6 +510,11 @@ function App() {
         setTimeout(() => setSyncStatus(null), 12000);
       }
     }
+  }
+
+  function handleFolderSelect(folderPath: string) {
+    const last = localStorage.getItem(`lastOpenFile:${folderPath}`);
+    if (last) { setSelectedPath(last); setAutoExpandTo(last); }
   }
 
   function startCreatingFile(parentPath?: string) {
@@ -536,6 +581,7 @@ function App() {
               rootPath={folder}
               selectedPath={selectedPath}
               onSelect={handleSelect}
+              onFolderSelect={handleFolderSelect}
               onNewFile={startCreatingFile}
               creatingInPath={creatingInPath}
               newFileName={newFileName}
@@ -543,6 +589,7 @@ function App() {
               onConfirmNewFile={confirmNewFile}
               onCancelNewFile={() => setCreatingInPath(null)}
               refreshKey={treeRefreshKey}
+              autoExpandTo={autoExpandTo}
             />
           </div>
           <div className="main-area">
@@ -581,6 +628,7 @@ function App() {
             setShowSettings(false);
             const last = localStorage.getItem(`lastOpenFile:${f}`);
             setSelectedPath(last ?? null);
+            setAutoExpandTo(last ?? null);
           }}
         />
       )}
