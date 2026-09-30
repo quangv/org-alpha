@@ -246,6 +246,14 @@ html, body, #root {
   outline: none;
 }
 
+.cm-search-count {
+  font-size: 11px;
+  color: #888;
+  margin-left: 6px;
+  white-space: nowrap;
+  align-self: center;
+}
+
 /* ---- Setup screen ---- */
 
 .setup-screen {

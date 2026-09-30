@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { ViewUpdate } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { search } from "@codemirror/search";
+import { search, getSearchQuery, searchPanelOpen } from "@codemirror/search";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -209,6 +210,8 @@ function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
   const [content, setContent] = useState("");
   const [saved, setSaved] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editorRef = useRef<ReactCodeMirrorRef>(null);
+  const matchCounterRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     invoke<string>("read_file", { path }).then((c) => {
@@ -230,6 +233,50 @@ function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
     }, 800);
   }, [path]);
 
+  const handleUpdate = useCallback((update: ViewUpdate) => {
+    const panelEl = editorRef.current?.editor?.querySelector(".cm-panel.cm-search");
+    if (!searchPanelOpen(update.state) || !panelEl) {
+      matchCounterRef.current = null;
+      return;
+    }
+
+    // Ensure our counter span exists inside the panel
+    let counter = panelEl.querySelector<HTMLSpanElement>(".cm-search-count");
+    if (!counter) {
+      counter = document.createElement("span");
+      counter.className = "cm-search-count";
+      panelEl.appendChild(counter);
+      matchCounterRef.current = counter;
+    }
+
+    const query = getSearchQuery(update.state);
+    const searchStr = query.search;
+    if (!searchStr) { counter.textContent = ""; return; }
+
+    const docStr = update.state.doc.toString();
+    const q = query.caseSensitive ? searchStr : searchStr.toLowerCase();
+    const hay = query.caseSensitive ? docStr : docStr.toLowerCase();
+
+    const positions: number[] = [];
+    let pos = 0;
+    while (pos < hay.length) {
+      const idx = hay.indexOf(q, pos);
+      if (idx === -1) break;
+      positions.push(idx);
+      pos = idx + 1;
+    }
+
+    const sel = update.state.selection.main;
+    const ci = positions.findIndex(p => p === sel.from);
+    if (positions.length === 0) {
+      counter.textContent = "No results";
+    } else if (ci >= 0) {
+      counter.textContent = `${ci + 1} / ${positions.length}`;
+    } else {
+      counter.textContent = `${positions.length} matches`;
+    }
+  }, []);
+
   const extensions = useMemo(() => [markdown(), search()], []);
   const filename = path.split("/").pop() ?? path;
 
@@ -245,9 +292,11 @@ function MarkdownEditor({ path, synced }: { path: string; synced: boolean }) {
         </div>
       </div>
       <CodeMirror
+        ref={editorRef}
         className="editor-textarea"
         value={content}
         onChange={handleChange}
+        onUpdate={handleUpdate}
         extensions={extensions}
         theme={isDark ? oneDark : "light"}
         basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
