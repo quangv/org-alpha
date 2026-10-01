@@ -3,6 +3,7 @@ import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { ViewUpdate } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, getSearchQuery, searchPanelOpen } from "@codemirror/search";
+import { EditorView } from "@codemirror/view";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -291,7 +292,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, { path: string; synced: 
   const [showPreview, setShowPreview] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  const extensions = useMemo(() => [markdown(), search()], []);
+  const extensions = useMemo(() => [markdown(), search(), EditorView.lineWrapping], []);
   const filename = path.split("/").pop() ?? path;
 
   const previewHtml = useMemo(() => showPreview ? marked(content) as string : "", [content, showPreview]);
