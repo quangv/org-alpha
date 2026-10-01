@@ -129,17 +129,24 @@ function TreeNode({ entry, depth, selectedPath, onSelect, onFolderSelect, onNewF
       <div
         className={`tree-item${isSelected ? " selected" : ""}`}
         style={{ paddingLeft: 12 + depth * 14 }}
-        onClick={() => {
+        onClick={(e) => {
           if (entry.is_dir) {
-            expand();
-            onFolderSelect(entry.path);
+            const isActive = selectedPath === entry.path || (selectedPath?.startsWith(entry.path + "/") ?? false);
+            if (!expanded) {
+              toggleCollapse(e);
+              onFolderSelect(entry.path);
+            } else if (!isActive) {
+              onFolderSelect(entry.path);
+            } else {
+              toggleCollapse(e);
+            }
           } else {
             onSelect(entry.path, false);
           }
         }}
       >
         {entry.is_dir ? (
-          <span className="tree-icon" onClick={toggleCollapse}>{expanded ? "▾" : "▸"}</span>
+          <span className="tree-icon" onClick={(e) => e.stopPropagation()}>{expanded ? "▾" : "▸"}</span>
         ) : (
           <span className="tree-icon file-icon">·</span>
         )}
@@ -624,7 +631,7 @@ function App() {
 
   function handleFolderSelect(folderPath: string) {
     const last = localStorage.getItem(`lastOpenFile:${folderPath}`);
-    if (last) { setSelectedPath(last); setAutoExpandTo(last); }
+    if (last) { setSelectedPath(last); setAutoExpandTo(last); } else { setSelectedPath(folderPath); }
   }
 
   function startCreatingFile(parentPath?: string) {
