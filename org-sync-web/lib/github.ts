@@ -37,6 +37,29 @@ export async function readFile(
   return { content, sha: data.sha };
 }
 
+export interface SearchResult {
+  path: string;
+  fragment: string;
+}
+
+export async function searchCode(
+  token: string,
+  owner: string,
+  repo: string,
+  query: string
+): Promise<SearchResult[]> {
+  const octokit = new Octokit({ auth: token });
+  const { data } = await octokit.search.code({
+    q: `${query} repo:${owner}/${repo}`,
+    per_page: 30,
+    mediaType: { previews: ["text-match"] },
+  } as any);
+  return (data.items as any[]).map((item) => ({
+    path: item.path as string,
+    fragment: (item.text_matches?.[0]?.fragment as string) ?? "",
+  }));
+}
+
 export async function writeFile(
   token: string,
   owner: string,

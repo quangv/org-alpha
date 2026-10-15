@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from "react";
+import { createPortal } from "react-dom";
 import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { ViewUpdate } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
@@ -559,6 +560,101 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// --- Global Search ---
+
+interface SearchResult { path: string; fragment: string; }
+
+interface GlobalSearchProps {
+  folder: string;
+  onSelect: (path: string) => void;
+  onClose: () => void;
+}
+
+function GlobalSearch({ folder, onSelect, onClose }: GlobalSearchProps) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setResults([]);
+      setError(null);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const items = await invoke<Array<{ path: string; fragment: string }>>("search_github", {
+          folder,
+          query: trimmed,
+        });
+        setResults(items);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(`Search failed: ${msg}`);
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, folder]);
+
+  return createPortal(
+    <div className="global-search-overlay" onClick={onClose}>
+      <div className="global-search-panel" onClick={(e) => e.stopPropagation()}>
+        <input
+          ref={inputRef}
+          className="global-search-input"
+          placeholder="Search files…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="global-search-results">
+          {loading && <div className="global-search-empty">Searching…</div>}
+          {error && <div className="global-search-empty" style={{ color: "#d9a3a3" }}>{error}</div>}
+          {!loading && !error && query.trim() && results.length === 0 && (
+            <div className="global-search-empty">No results found</div>
+          )}
+          {!loading && !error && results.map((result) => (
+            <div
+              key={result.path}
+              className="global-search-item"
+              onClick={() => { onSelect(result.path); onClose(); }}
+            >
+              <div className="global-search-path">{result.path.startsWith(folder + "/") ? result.path.slice(folder.length + 1) : result.path}</div>
+              {result.fragment && (
+                <div className="global-search-fragment">{result.fragment}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // --- Main App ---
 
 function App() {
@@ -568,6 +664,7 @@ function App() {
   const [autoExpandTo, setAutoExpandTo] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: "ok" | "error"; msg: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
@@ -605,6 +702,19 @@ function App() {
 
     return () => { unlisten.then((f) => f()); unlistenPrint.then((f) => f()); unlistenSettings.then((f) => f()); };
   }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "F") {
+        if (folder) {
+          e.preventDefault();
+          setShowSearch(true);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [folder, config.github_repo, config.github_token]);
 
   function storeLastOpen(filePath: string) {
     if (!folder) return;
@@ -687,6 +797,9 @@ function App() {
               <span className="sidebar-title">{folder.split("/").pop()}</span>
               <div className="sidebar-actions">
                 <button className="icon-btn" title="New file" onClick={() => startCreatingFile()}>+</button>
+                {config.github_repo && config.github_token && (
+                  <button className="icon-btn" title="Search files (⌘⇧F)" onClick={() => setShowSearch(true)}>🔍</button>
+                )}
                 <button
                   className="icon-btn"
                   title="Sync now"
@@ -752,6 +865,17 @@ function App() {
             setSelectedPath(last ?? null);
             setAutoExpandTo(last ?? null);
           }}
+        />
+      )}
+
+      {showSearch && folder && (
+        <GlobalSearch
+          folder={folder}
+          onSelect={(path) => {
+            handleSelect(path, false);
+            setAutoExpandTo(path);
+          }}
+          onClose={() => setShowSearch(false)}
         />
       )}
     </div>

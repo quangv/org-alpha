@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import FileTree from "@/components/FileTree";
 import Editor from "@/components/Editor";
 import RepoSelector from "@/components/RepoSelector";
+import GlobalSearch from "@/components/GlobalSearch";
 
 const STORAGE_KEY = "org-sync-repo";
 
@@ -16,6 +17,20 @@ export default function EditorShell({ token }: Props) {
   const [repo, setRepo] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "F") {
+        if (owner && repo) {
+          e.preventDefault();
+          setShowSearch(true);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [owner, repo]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -47,6 +62,7 @@ export default function EditorShell({ token }: Props) {
   }
 
   return (
+    <>
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Mobile top bar — only shown when a repo is loaded */}
       {owner && repo && (
@@ -84,6 +100,15 @@ export default function EditorShell({ token }: Props) {
             >
               <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
                 <span className="text-xs text-gray-400 truncate">{owner}/{repo}</span>
+                {owner && repo && (
+                  <button
+                    onClick={() => setShowSearch(true)}
+                    className="text-gray-600 hover:text-gray-400 text-xs ml-1 shrink-0"
+                    title="Search files (⌘⇧F)"
+                  >
+                    🔍
+                  </button>
+                )}
                 <button
                   onClick={clearRepo}
                   className="text-gray-600 hover:text-gray-400 text-xs ml-1 shrink-0"
@@ -115,5 +140,16 @@ export default function EditorShell({ token }: Props) {
         </main>
       </div>
     </div>
+
+    {showSearch && owner && repo && (
+      <GlobalSearch
+        token={token}
+        owner={owner}
+        repo={repo}
+        onSelect={selectPath}
+        onClose={() => setShowSearch(false)}
+      />
+    )}
+    </>
   );
 }

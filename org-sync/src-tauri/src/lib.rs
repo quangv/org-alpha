@@ -3,6 +3,7 @@ mod watcher;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{
@@ -196,6 +197,52 @@ fn print_html(html: String) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+#[derive(Serialize)]
+struct SearchResult {
+    path: String,
+    fragment: String,
+}
+
+#[tauri::command]
+fn search_github(folder: String, query: String) -> Result<Vec<SearchResult>, String> {
+    let q = query.to_lowercase();
+    let mut results = Vec::new();
+    search_dir(&std::path::Path::new(&folder), &folder, &q, &mut results);
+    Ok(results)
+}
+
+fn search_dir(dir: &std::path::Path, root: &str, query: &str, results: &mut Vec<SearchResult>) {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            search_dir(&path, root, query, results);
+        } else if path.extension().map(|e| e == "md" || e == "markdown").unwrap_or(false) {
+            if let Ok(file) = fs::File::open(&path) {
+                let reader = BufReader::new(file);
+                for line in reader.lines().filter_map(|l| l.ok()) {
+                    if line.to_lowercase().contains(query) {
+                        let fragment = line.trim().chars().take(120).collect::<String>();
+                        results.push(SearchResult { path: path.to_string_lossy().to_string(), fragment });
+                        break;
+                    }
+                }
+            }
+        }
+        if results.len() >= 30 {
+            return;
+        }
+    }
+}
+
 #[tauri::command]
 fn open_native(path: String) -> Result<(), String> {
     std::process::Command::new("open")
@@ -331,6 +378,7 @@ pub fn run() {
             create_file,
             open_native,
         print_html,
+        search_github,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
