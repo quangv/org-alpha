@@ -10,6 +10,8 @@ CWD="$(pwd)"
 
 STATUS=" #[fg=colour243]$CWD#[default] "
 
+printf '\033]1;%s\007' "$SESSION"
+
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   tmux attach-session -t "$SESSION"
 else
