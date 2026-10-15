@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "tmux": "bash tmux-run.sh dev"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",

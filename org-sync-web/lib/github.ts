@@ -42,22 +42,38 @@ export interface SearchResult {
   fragment: string;
 }
 
+const treeCache = new Map<string, string[]>();
+
+async function fetchTree(token: string, owner: string, repo: string): Promise<string[]> {
+  const key = `${owner}/${repo}`;
+  if (treeCache.has(key)) return treeCache.get(key)!;
+
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`,
+    { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } }
+  );
+  if (!res.ok) throw Object.assign(new Error("Failed to fetch tree"), { status: res.status });
+  const data = await res.json();
+  const paths: string[] = (data.tree as any[])
+    .filter((item) => item.type === "blob")
+    .map((item) => item.path as string);
+  treeCache.set(key, paths);
+  return paths;
+}
+
+// Search is filename-only for now; full-content search is a possible future addition.
 export async function searchCode(
   token: string,
   owner: string,
   repo: string,
   query: string
 ): Promise<SearchResult[]> {
-  const octokit = new Octokit({ auth: token });
-  const { data } = await octokit.search.code({
-    q: `${query} repo:${owner}/${repo}`,
-    per_page: 30,
-    mediaType: { previews: ["text-match"] },
-  } as any);
-  return (data.items as any[]).map((item) => ({
-    path: item.path as string,
-    fragment: (item.text_matches?.[0]?.fragment as string) ?? "",
-  }));
+  const paths = await fetchTree(token, owner, repo);
+  const lower = query.toLowerCase();
+  return paths
+    .filter((p) => p.toLowerCase().includes(lower))
+    .slice(0, 30)
+    .map((path) => ({ path, fragment: "" }));
 }
 
 export async function writeFile(
