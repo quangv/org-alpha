@@ -15,6 +15,7 @@ export default function EditorShell({ token }: Props) {
   const [owner, setOwner] = useState<string | null>(null);
   const [repo, setRepo] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -32,43 +33,87 @@ export default function EditorShell({ token }: Props) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ owner: o, repo: r }));
   }
 
+  function selectPath(path: string) {
+    setSelectedPath(path);
+    setNavOpen(false);
+  }
+
+  function clearRepo() {
+    setOwner(null);
+    setRepo(null);
+    setSelectedPath(null);
+    setNavOpen(false);
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <aside className={`border-r border-gray-800 overflow-auto flex flex-col${owner && repo ? " w-56" : " w-0"}`}>
-        {owner && repo ? (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Mobile top bar — only shown when a repo is loaded */}
+      {owner && repo && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800 md:hidden">
+          <span className="text-xs text-gray-400 truncate">{owner}/{repo}</span>
+          <button
+            onClick={() => setNavOpen((v) => !v)}
+            className="text-gray-400 hover:text-gray-200 ml-2 shrink-0 text-lg leading-none"
+            aria-label="Toggle file tree"
+          >
+            ☰
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar — always visible on md+, drawer on mobile */}
+        {owner && repo && (
           <>
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
-              <span className="text-xs text-gray-400 truncate">{owner}/{repo}</span>
-              <button
-                onClick={() => { setOwner(null); setRepo(null); setSelectedPath(null); localStorage.removeItem(STORAGE_KEY); }}
-                className="text-gray-600 hover:text-gray-400 text-xs ml-1 shrink-0"
-              >
-                ✕
-              </button>
-            </div>
-            <FileTree
-              token={token}
-              owner={owner}
-              repo={repo}
-              selectedPath={selectedPath}
-              onSelect={setSelectedPath}
-            />
+            {/* Mobile drawer backdrop */}
+            {navOpen && (
+              <div
+                className="fixed inset-0 z-10 bg-black/50 md:hidden"
+                onClick={() => setNavOpen(false)}
+              />
+            )}
+            <aside
+              className={`
+                flex flex-col border-r border-gray-800 overflow-auto
+                md:relative md:w-56 md:flex
+                fixed inset-y-0 left-0 z-20 w-64 bg-gray-950 transition-transform duration-200
+                md:translate-x-0 md:transition-none
+                ${navOpen ? "translate-x-0" : "-translate-x-full"}
+              `}
+            >
+              <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
+                <span className="text-xs text-gray-400 truncate">{owner}/{repo}</span>
+                <button
+                  onClick={clearRepo}
+                  className="text-gray-600 hover:text-gray-400 text-xs ml-1 shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+              <FileTree
+                token={token}
+                owner={owner}
+                repo={repo}
+                selectedPath={selectedPath}
+                onSelect={selectPath}
+              />
+            </aside>
           </>
-        ) : (
-          <div className="flex-1" />
         )}
-      </aside>
-      <main className="flex-1 overflow-hidden">
-        {!owner || !repo ? (
-          <RepoSelector onSelect={selectRepo} />
-        ) : selectedPath ? (
-          <Editor key={selectedPath} token={token} owner={owner} repo={repo} path={selectedPath} />
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-600 text-sm">
-            Select a file
-          </div>
-        )}
-      </main>
+
+        <main className="flex-1 overflow-hidden">
+          {!owner || !repo ? (
+            <RepoSelector onSelect={selectRepo} />
+          ) : selectedPath ? (
+            <Editor key={selectedPath} token={token} owner={owner} repo={repo} path={selectedPath} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-600 text-sm">
+              Select a file
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
