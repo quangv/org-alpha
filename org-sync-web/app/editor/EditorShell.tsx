@@ -34,7 +34,7 @@ export default function EditorShell({ token }: Props) {
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <aside className="w-56 border-r border-gray-800 overflow-auto flex flex-col">
+      <aside className={`border-r border-gray-800 overflow-auto flex flex-col${owner && repo ? " w-56" : " w-0"}`}>
         {owner && repo ? (
           <>
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
