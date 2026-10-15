@@ -599,7 +599,11 @@ function App() {
       editorHandle.current?.print();
     });
 
-    return () => { unlisten.then((f) => f()); unlistenPrint.then((f) => f()); };
+    const unlistenSettings = listen("open-settings", () => {
+      setShowSettings(true);
+    });
+
+    return () => { unlisten.then((f) => f()); unlistenPrint.then((f) => f()); unlistenSettings.then((f) => f()); };
   }, []);
 
   function storeLastOpen(filePath: string) {

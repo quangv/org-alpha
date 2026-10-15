@@ -283,6 +283,7 @@ pub fn run() {
                         let _ = win.show();
                         let _ = win.set_focus();
                     }
+                    let _ = app.emit("open-settings", ());
                 }
                 "sync" => {
                     let config = app.state::<AppState>().0.lock().unwrap().clone();
