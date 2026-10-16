@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import FileTree from "@/components/FileTree";
+import { useEffect, useRef, useState } from "react";
+import FileTree, { FileTreeHandle } from "@/components/FileTree";
 import Editor from "@/components/Editor";
 import RepoSelector from "@/components/RepoSelector";
 import GlobalSearch from "@/components/GlobalSearch";
@@ -18,6 +18,7 @@ export default function EditorShell({ token }: Props) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const fileTreeRef = useRef<FileTreeHandle>(null);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -100,23 +101,31 @@ export default function EditorShell({ token }: Props) {
             >
               <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
                 <span className="text-xs text-gray-400 truncate">{owner}/{repo}</span>
-                {owner && repo && (
+                <div className="flex items-center ml-auto shrink-0">
+                  <button
+                    onClick={() => fileTreeRef.current?.startNewFile()}
+                    className="text-gray-600 hover:text-gray-400 text-xs px-1"
+                    title="New file"
+                  >
+                    +
+                  </button>
                   <button
                     onClick={() => setShowSearch(true)}
-                    className="text-gray-600 hover:text-gray-400 text-xs ml-1 shrink-0"
+                    className="text-gray-600 hover:text-gray-400 text-xs px-1"
                     title="Search files (⌘⇧F)"
                   >
                     🔍
                   </button>
-                )}
-                <button
-                  onClick={clearRepo}
-                  className="text-gray-600 hover:text-gray-400 text-xs ml-1 shrink-0"
-                >
-                  ✕
-                </button>
+                  <button
+                    onClick={clearRepo}
+                    className="text-gray-600 hover:text-gray-400 text-xs px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
               <FileTree
+                ref={fileTreeRef}
                 token={token}
                 owner={owner}
                 repo={repo}

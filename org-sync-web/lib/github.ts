@@ -76,6 +76,31 @@ export async function searchCode(
     .map((path) => ({ path, fragment: "" }));
 }
 
+export async function createFile(
+  token: string,
+  owner: string,
+  repo: string,
+  path: string,
+  message: string
+): Promise<void> {
+  const cleanPath = path.replace(/^\//, "");
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message, content: "" }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg: string = data.message ?? `HTTP ${res.status}`;
+    if (msg.toLowerCase().includes("sha")) throw new Error("A file already exists at that path.");
+    throw new Error(msg);
+  }
+}
+
 export async function writeFile(
   token: string,
   owner: string,

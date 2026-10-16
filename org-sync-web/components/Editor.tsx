@@ -10,6 +10,13 @@ interface Props {
   path: string;
 }
 
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"]);
+
+function isImage(path: string) {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return IMAGE_EXTS.has(ext);
+}
+
 export default function Editor({ token, owner, repo, path }: Props) {
   const [content, setContent] = useState("");
   const [sha, setSha] = useState("");
@@ -17,16 +24,20 @@ export default function Editor({ token, owner, repo, path }: Props) {
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const dirty = useRef(false);
 
+  const image = isImage(path);
+
   useEffect(() => {
     setContent("");
     setSha("");
     setStatus("idle");
-    readFile(token, owner, repo, path).then(({ content, sha }) => {
-      setContent(content);
-      setSha(sha);
-      dirty.current = false;
-    });
-  }, [token, owner, repo, path]);
+    if (!image) {
+      readFile(token, owner, repo, path).then(({ content, sha }) => {
+        setContent(content);
+        setSha(sha);
+        dirty.current = false;
+      });
+    }
+  }, [token, owner, repo, path, image]);
 
   async function save(value: string) {
     if (!sha || saving) return;
@@ -52,6 +63,8 @@ export default function Editor({ token, owner, repo, path }: Props) {
     }
   }
 
+  const imageUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 text-xs text-gray-500">
@@ -62,14 +75,21 @@ export default function Editor({ token, owner, repo, path }: Props) {
           {!saving && status === "error" && "Error saving"}
         </span>
       </div>
-      <textarea
-        className="flex-1 bg-gray-950 text-gray-100 font-mono text-sm p-4 resize-none outline-none"
-        value={content}
-        onChange={(e) => { setContent(e.target.value); dirty.current = true; }}
-        onBlur={() => { if (dirty.current) { dirty.current = false; save(content); } }}
-        onKeyDown={handleKeyDown}
-        spellCheck={false}
-      />
+      {image ? (
+        <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt={path} className="max-w-full max-h-full object-contain" />
+        </div>
+      ) : (
+        <textarea
+          className="flex-1 bg-gray-950 text-gray-100 font-mono text-sm p-4 resize-none outline-none"
+          value={content}
+          onChange={(e) => { setContent(e.target.value); dirty.current = true; }}
+          onBlur={() => { if (dirty.current) { dirty.current = false; save(content); } }}
+          onKeyDown={handleKeyDown}
+          spellCheck={false}
+        />
+      )}
     </div>
   );
 }
