@@ -15,6 +15,7 @@ interface Props {
 export default function EditorShell({ token }: Props) {
   const [owner, setOwner] = useState<string | null>(null);
   const [repo, setRepo] = useState<string | null>(null);
+  const [savedRepo, setSavedRepo] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -37,16 +38,21 @@ export default function EditorShell({ token }: Props) {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const { owner, repo } = JSON.parse(saved);
+      setSavedRepo(`${owner}/${repo}`);
       setOwner(owner);
       setRepo(repo);
     }
   }, []);
 
-  function selectRepo(o: string, r: string) {
+  function selectRepo(o: string, r: string, remember: boolean) {
     setOwner(o);
     setRepo(r);
     setSelectedPath(null);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ owner: o, repo: r }));
+    if (remember) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ owner: o, repo: r }));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   }
 
   function selectPath(path: string) {
@@ -138,7 +144,7 @@ export default function EditorShell({ token }: Props) {
 
         <main className="flex-1 overflow-hidden">
           {!owner || !repo ? (
-            <RepoSelector onSelect={selectRepo} />
+            <RepoSelector defaultValue={savedRepo ?? undefined} onSelect={selectRepo} />
           ) : selectedPath ? (
             <Editor key={selectedPath} token={token} owner={owner} repo={repo} path={selectedPath} />
           ) : (

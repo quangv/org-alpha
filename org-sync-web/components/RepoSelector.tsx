@@ -3,12 +3,14 @@
 import { useState } from "react";
 
 interface Props {
-  onSelect: (owner: string, repo: string) => void;
+  defaultValue?: string;
+  onSelect: (owner: string, repo: string, remember: boolean) => void;
 }
 
-export default function RepoSelector({ onSelect }: Props) {
-  const [input, setInput] = useState("");
+export default function RepoSelector({ defaultValue, onSelect }: Props) {
+  const [input, setInput] = useState(defaultValue ?? "");
   const [error, setError] = useState("");
+  const [remember, setRemember] = useState(true);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -18,7 +20,7 @@ export default function RepoSelector({ onSelect }: Props) {
       return;
     }
     setError("");
-    onSelect(match[1], match[2]);
+    onSelect(match[1], match[2], remember);
   }
 
   return (
@@ -38,6 +40,10 @@ export default function RepoSelector({ onSelect }: Props) {
           Open
         </button>
       </form>
+      <label className="flex items-center gap-2 text-gray-500 text-xs cursor-pointer">
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        Remember repo
+      </label>
       {error && <p className="text-red-400">{error}</p>}
     </div>
   );
