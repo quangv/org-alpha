@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "tmux": "bash tmux-run.sh dev"
+    "tmux": "tmux-run osync-web dev"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",

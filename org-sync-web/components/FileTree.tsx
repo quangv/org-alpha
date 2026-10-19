@@ -26,6 +26,7 @@ const FileTree = forwardRef<FileTreeHandle, Props>(function FileTree(
 ) {
   const [nodes, setNodes] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
@@ -36,8 +37,10 @@ const FileTree = forwardRef<FileTreeHandle, Props>(function FileTree(
 
   function load() {
     setLoading(true);
+    setLoadError(null);
     listFiles(token, owner, repo)
       .then((files) => setNodes(files))
+      .catch((e) => setLoadError(e?.message ?? "Failed to load files"))
       .finally(() => setLoading(false));
   }
 
@@ -82,6 +85,13 @@ const FileTree = forwardRef<FileTreeHandle, Props>(function FileTree(
   }
 
   if (loading) return <div className="p-3 text-gray-500 text-sm">Loading…</div>;
+  if (loadError) return (
+    <div className="p-3 text-red-400 text-sm">
+      <p>Failed to load files.</p>
+      <p className="text-gray-500 text-xs mt-1">{loadError}</p>
+      <button onClick={load} className="mt-2 text-xs text-gray-400 underline">Retry</button>
+    </div>
+  );
 
   const shared: CreateProps = { creatingInPath, newName, createError, onStart: startCreating, onNameChange: setNewName, onConfirm: confirmCreate, onCancel: cancelCreate };
 

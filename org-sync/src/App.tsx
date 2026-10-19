@@ -687,7 +687,11 @@ function App() {
     const unlisten = listen<SyncResult>("sync-result", (event) => {
       setSyncing(false);
       if (event.payload.status === "error" || event.payload.message !== "up to date") {
-        setSyncStatus({ type: event.payload.status, msg: event.payload.message });
+        const rawMsg = event.payload.message;
+        const msg = rawMsg.startsWith("Sync conflict:")
+          ? "Your changes conflict with updates from another device. Try re-cloning to reset."
+          : rawMsg;
+        setSyncStatus({ type: event.payload.status, msg });
         setTimeout(() => setSyncStatus(null), event.payload.status === "error" ? 12000 : 4000);
       }
     });

@@ -64,11 +64,21 @@ pub fn set_remote(repo: &str, url: &str) -> Result<(), String> {
 
 pub fn sync(repo: &str, message: &str) -> Result<String, String> {
     let status = git(repo, &["status", "--porcelain"])?;
-    if status.is_empty() {
-        return Ok("up to date".to_string());
+    if !status.is_empty() {
+        git(repo, &["add", "."])?;
+        git(repo, &["commit", "-m", message])?;
     }
-    git(repo, &["add", "."])?;
-    git(repo, &["commit", "-m", message])?;
+    if let Err(e) = git(repo, &["pull", "--rebase", "origin", "HEAD"]) {
+        let _ = git(repo, &["rebase", "--abort"]);
+        return Err(format!(
+            "Sync conflict: remote has changes that conflict with yours. \
+             Try re-cloning to reset. Details: {e}"
+        ));
+    }
     git(repo, &["push", "-u", "origin", "HEAD"])?;
-    Ok("synced".to_string())
+    if status.is_empty() {
+        Ok("up to date".to_string())
+    } else {
+        Ok("synced".to_string())
+    }
 }
