@@ -25,12 +25,21 @@ export default function Editor({ token, owner, repo, path }: Props) {
   const dirty = useRef(false);
 
   const image = isImage(path);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setContent("");
     setSha("");
     setStatus("idle");
-    if (!image) {
+    setImageDataUrl(null);
+    if (image) {
+      readFile(token, owner, repo, path).then(({ base64, sha }) => {
+        const ext = path.split(".").pop()?.toLowerCase() ?? "png";
+        const mime = ext === "svg" ? "image/svg+xml" : `image/${ext}`;
+        setImageDataUrl(`data:${mime};base64,${base64}`);
+        setSha(sha);
+      });
+    } else {
       readFile(token, owner, repo, path).then(({ content, sha }) => {
         setContent(content);
         setSha(sha);
@@ -63,8 +72,6 @@ export default function Editor({ token, owner, repo, path }: Props) {
     }
   }
 
-  const imageUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 text-xs text-gray-500">
@@ -78,7 +85,7 @@ export default function Editor({ token, owner, repo, path }: Props) {
       {image ? (
         <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={path} className="max-w-full max-h-full object-contain" />
+          {imageDataUrl && <img src={imageDataUrl} alt={path} className="max-w-full max-h-full object-contain" />}
         </div>
       ) : (
         <textarea

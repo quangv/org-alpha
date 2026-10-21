@@ -3,6 +3,18 @@ import { redirect } from "next/navigation";
 import EditorShell from "./EditorShell";
 
 export default async function EditorPage() {
+  const devToken = process.env.DEV_GITHUB_TOKEN;
+  if (devToken) {
+    return (
+      <div className="h-screen flex flex-col bg-gray-950 text-gray-100">
+        <header className="flex items-center justify-between px-4 py-2 border-b border-gray-800 text-sm">
+          <span className="font-medium">org-sync (dev)</span>
+        </header>
+        <EditorShell token={devToken} />
+      </div>
+    );
+  }
+
   const session = await auth();
   if (!session) redirect("/");
 

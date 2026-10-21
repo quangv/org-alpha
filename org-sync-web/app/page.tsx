@@ -2,6 +2,7 @@ import { auth, signIn } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export default async function Home() {
+  if (process.env.DEV_GITHUB_TOKEN) redirect("/editor");
   const session = await auth();
   if (session) redirect("/editor");
 

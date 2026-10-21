@@ -29,12 +29,13 @@ export async function readFile(
   owner: string,
   repo: string,
   path: string
-): Promise<{ content: string; sha: string }> {
+): Promise<{ content: string; sha: string; base64: string }> {
   const octokit = new Octokit({ auth: token });
   const { data } = await octokit.repos.getContent({ owner, repo, path });
   if (Array.isArray(data) || data.type !== "file") throw new Error("Not a file");
-  const content = Buffer.from(data.content, "base64").toString("utf-8");
-  return { content, sha: data.sha };
+  const base64 = data.content.replace(/\n/g, "");
+  const content = Buffer.from(base64, "base64").toString("utf-8");
+  return { content, sha: data.sha, base64 };
 }
 
 export interface SearchResult {
