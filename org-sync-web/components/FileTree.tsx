@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { FileEntry, listFiles, createFile } from "@/lib/github";
+import { FileEntry, listFiles, createFile, trashFile } from "@/lib/github";
 
 interface Props {
   token: string;
@@ -9,6 +9,7 @@ interface Props {
   repo: string;
   selectedPath: string | null;
   onSelect: (path: string) => void;
+  onTrash?: (path: string) => void;
 }
 
 export interface FileTreeHandle {
@@ -21,7 +22,7 @@ interface TreeNode extends FileEntry {
 }
 
 const FileTree = forwardRef<FileTreeHandle, Props>(function FileTree(
-  { token, owner, repo, selectedPath, onSelect },
+  { token, owner, repo, selectedPath, onSelect, onTrash },
   ref
 ) {
   const [nodes, setNodes] = useState<TreeNode[]>([]);
@@ -30,6 +31,7 @@ const FileTree = forwardRef<FileTreeHandle, Props>(function FileTree(
   const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [trashing, setTrashing] = useState<string | null>(null);
 
   useImperativeHandle(ref, () => ({
     startNewFile: () => startCreating(""),
@@ -68,6 +70,20 @@ const FileTree = forwardRef<FileTreeHandle, Props>(function FileTree(
     setCreateError(null);
   }
 
+  async function handleTrash(path: string) {
+    if (!confirm(`Move "${path}" to ~trash?`)) return;
+    setTrashing(path);
+    try {
+      await trashFile(token, owner, repo, path);
+      onTrash?.(path);
+      load();
+    } catch (e: any) {
+      alert(e?.message ?? "Failed to trash file");
+    } finally {
+      setTrashing(null);
+    }
+  }
+
   async function confirmCreate() {
     if (creatingInPath === null || !newName.trim()) return;
     const name = newName.trim();
@@ -97,7 +113,7 @@ const FileTree = forwardRef<FileTreeHandle, Props>(function FileTree(
 
   return (
     <div className="overflow-auto flex flex-col">
-      <NodeList nodes={nodes} depth={0} selectedPath={selectedPath} onSelect={onSelect} onToggle={toggleDir} createProps={shared} />
+      <NodeList nodes={nodes} depth={0} selectedPath={selectedPath} onSelect={onSelect} onToggle={toggleDir} createProps={shared} onTrash={handleTrash} trashing={trashing} />
       {creatingInPath === "" && (
         <NewFileInput depth={0} value={newName} error={createError} onChange={setNewName} onConfirm={confirmCreate} onCancel={cancelCreate} />
       )}
@@ -150,6 +166,8 @@ function NodeList({
   onSelect,
   onToggle,
   createProps,
+  onTrash,
+  trashing,
 }: {
   nodes: TreeNode[];
   depth: number;
@@ -157,6 +175,8 @@ function NodeList({
   onSelect: (path: string) => void;
   onToggle: (node: TreeNode) => void;
   createProps: CreateProps;
+  onTrash: (path: string) => void;
+  trashing: string | null;
 }) {
   const { creatingInPath, newName, createError, onStart, onNameChange, onConfirm, onCancel } = createProps;
 
@@ -179,9 +199,19 @@ function NodeList({
               <button
                 onClick={(e) => { e.stopPropagation(); onStart(node.path); }}
                 title="New file here"
-                className="opacity-0 group-hover/row:opacity-100 text-gray-500 hover:text-gray-200 text-xs px-1 mr-1 leading-none shrink-0"
+                className="opacity-0 group-hover/row:opacity-100 text-gray-500 hover:text-gray-200 text-xs px-1 leading-none shrink-0"
               >
                 +
+              </button>
+            )}
+            {node.type === "file" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onTrash(node.path); }}
+                title="Move to trash"
+                disabled={trashing === node.path}
+                className="opacity-0 group-hover/row:opacity-100 text-gray-600 hover:text-red-400 text-xs px-1 mr-1 leading-none shrink-0 disabled:opacity-50"
+              >
+                {trashing === node.path ? "…" : "⌫"}
               </button>
             )}
           </div>
@@ -194,6 +224,8 @@ function NodeList({
                 onSelect={onSelect}
                 onToggle={onToggle}
                 createProps={createProps}
+                onTrash={onTrash}
+                trashing={trashing}
               />
               {creatingInPath === node.path && (
                 <NewFileInput depth={depth + 1} value={newName} error={createError} onChange={onNameChange} onConfirm={onConfirm} onCancel={onCancel} />

@@ -102,6 +102,53 @@ export async function createFile(
   }
 }
 
+export async function deleteFile(
+  token: string,
+  owner: string,
+  repo: string,
+  path: string,
+  sha: string,
+  message: string
+): Promise<void> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message, sha }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message ?? `HTTP ${res.status}`);
+  }
+}
+
+export async function trashFile(
+  token: string,
+  owner: string,
+  repo: string,
+  path: string
+): Promise<void> {
+  const { base64, sha } = await readFile(token, owner, repo, path);
+  const trashPath = `~trash/${path}`;
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${trashPath}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message: `trash: ${path}`, content: base64 }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message ?? `HTTP ${res.status}`);
+  }
+  await deleteFile(token, owner, repo, path, sha, `trash: remove ${path}`);
+}
+
 export async function writeFile(
   token: string,
   owner: string,

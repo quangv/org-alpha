@@ -142,6 +142,7 @@ export default function EditorShell({ token }: Props) {
                 repo={repo}
                 selectedPath={selectedPath}
                 onSelect={selectPath}
+                onTrash={(path) => { if (selectedPath === path) setSelectedPath(null); }}
               />
             </aside>
           </>
