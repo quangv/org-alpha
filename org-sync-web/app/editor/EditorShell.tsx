@@ -7,6 +7,7 @@ import RepoSelector from "@/components/RepoSelector";
 import GlobalSearch from "@/components/GlobalSearch";
 
 const STORAGE_KEY = "org-sync-repo";
+const lastFileKey = (owner: string, repo: string) => `org-sync-last-file:${owner}/${repo}`;
 
 interface Props {
   token: string;
@@ -41,13 +42,16 @@ export default function EditorShell({ token }: Props) {
       setSavedRepo(`${owner}/${repo}`);
       setOwner(owner);
       setRepo(repo);
+      const lastFile = localStorage.getItem(lastFileKey(owner, repo));
+      if (lastFile) setSelectedPath(lastFile);
     }
   }, []);
 
   function selectRepo(o: string, r: string, remember: boolean) {
     setOwner(o);
     setRepo(r);
-    setSelectedPath(null);
+    const lastFile = localStorage.getItem(lastFileKey(o, r));
+    setSelectedPath(lastFile ?? null);
     if (remember) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ owner: o, repo: r }));
     } else {
@@ -58,6 +62,7 @@ export default function EditorShell({ token }: Props) {
   function selectPath(path: string) {
     setSelectedPath(path);
     setNavOpen(false);
+    if (owner && repo) localStorage.setItem(lastFileKey(owner, repo), path);
   }
 
   function clearRepo() {
